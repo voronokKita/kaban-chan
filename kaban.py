@@ -1,9 +1,12 @@
-#!python3
 # TODO read all:
     # https://core.telegram.org/bots/api#available-types
     # https://github.com/eternnoir/pyTelegramBotAPI
 # TODO logging
 # TODO testing
+""" Thanks to
+https://habr.com/ru/post/350648/
+https://habr.com/ru/post/495036/
+https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examples/webhook_flask_echo_bot.py """
 import csv
 import time
 import pathlib
@@ -14,14 +17,17 @@ import telebot
 from telebot import types as bot_types
 import feedparser
 from bs4 import BeautifulSoup
+from flask import Flask, request, json
+import requests
 
+app = Flask(__name__)
 
 MASTER = "@simple_complexity"
 
-api = pathlib.Path.cwd() / ".env"
-with open(api) as f:
-    api = f.read().strip()
-bot = telebot.TeleBot(api)
+API = pathlib.Path.cwd() / ".api"
+with open(API) as f:
+    API = f.read().strip()
+bot = telebot.TeleBot(API)
 
 DB_HEADERS = ['feed', 'chat_id']
 db = pathlib.Path.cwd() / ".database.csv"
@@ -43,6 +49,15 @@ POTENTIAL_RSS = None
 class DataAlreadyExistsError(Exception): pass
 
 
+@app.route("/", methods=['POST'])
+def receiver():
+    if request.headers.get('content-type') == 'application/json':
+        json = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json)
+        bot.process_new_updates([update])
+    return ""
+
+
 @bot.message_handler(commands=['start'])
 def hello(message):
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -59,25 +74,26 @@ def help(message):
 
 
 @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
-def main_handler(message):
+def add_rss(message):
     global FLAG_AWAITING_RSS, POTENTIAL_RSS
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
     text = ""
-    if message.text == f"/{KEY_ADD_NEW_FEED}":
+    if not FLAG_AWAITING_RSS and message.text == f"/{KEY_ADD_NEW_FEED}":
         text = "Send me a URI of your RSS. I'll check it out."
         markup.add(BUTTON_CANCEL)
         FLAG_AWAITING_RSS = True
 
-    elif message.text == f"/{KEY_CANCEL}":
+    elif FLAG_AWAITING_RSS and message.text == f"/{KEY_CANCEL}":
         text = "Cancelled~"
         markup.add(BUTTON_ADD_NEW_FEED)
         FLAG_AWAITING_RSS = False
+        POTENTIAL_RSS = None
 
     elif FLAG_AWAITING_RSS and POTENTIAL_RSS and message.text == f"/{KEY_INSERT_INTO_DB}":
         try:
             add_new_rss(POTENTIAL_RSS, str(message.chat.id))
         except Exception as error:
-            text = f"Something went wrong :C Please notify the master {MASTER} about this. Error code:\n{error}"
+            text = f"Something went wrong :C Please notify the master {MASTER} about this. Error text:\n{error}"
             markup.add(BUTTON_CANCEL)
         else:
             text = "RSS added!"
@@ -90,7 +106,7 @@ def main_handler(message):
 
 
 @bot.message_handler(content_types=['text'])
-def echo(message):
+def get_text_data(message):
     global POTENTIAL_RSS
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
     text = ""
@@ -131,7 +147,7 @@ def add_new_rss(rss, chat_id):
     print("db: a new entry")
 
 
-bot.infinity_polling()
+#bot.infinity_polling()
 
 
 """

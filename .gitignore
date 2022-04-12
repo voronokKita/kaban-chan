@@ -1,5 +1,6 @@
-.env
+.api
 .database.csv
+ngrok
 Pipfile.lock
 .vscode
 
