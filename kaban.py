@@ -10,6 +10,7 @@ https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examp
 import csv
 import time
 import pathlib
+import threading
 from datetime import datetime
 from pprint import pprint
 
@@ -18,9 +19,7 @@ from telebot import types as bot_types
 import feedparser
 from bs4 import BeautifulSoup
 from flask import Flask, request, json
-import requests
 
-app = Flask(__name__)
 
 MASTER = "@simple_complexity"
 
@@ -45,6 +44,8 @@ BUTTON_INSERT_INTO_DB = bot_types.KeyboardButton(f"/{KEY_INSERT_INTO_DB}")
 
 FLAG_AWAITING_RSS = False
 POTENTIAL_RSS = None
+
+app = Flask(__name__)
 
 class DataAlreadyExistsError(Exception): pass
 
@@ -149,6 +150,13 @@ def add_new_rss(rss, chat_id):
 
 #bot.infinity_polling()
 
+def updater():
+    while True:
+        print("check for updates")
+        time.sleep(4)
+
+side_thread = threading.Thread(target=updater)
+side_thread.start()
 
 """
 #  http://feeds.bbci.co.uk/news/rss.xml
