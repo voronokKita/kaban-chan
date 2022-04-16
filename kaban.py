@@ -3,22 +3,27 @@
     # https://github.com/eternnoir/pyTelegramBotAPI
 # TODO logging
 # TODO testing
+# TODO easy start
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/
 https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examples/webhook_flask_echo_bot.py """
+import os
+import sys
 import csv
 import time
+import signal
 import pathlib
 import threading
 from datetime import datetime
-from pprint import pprint
 
 import telebot
 from telebot import types as bot_types
 import feedparser
 from bs4 import BeautifulSoup
 from flask import Flask, request, json
+from werkzeug.serving import make_server
+from pyngrok import ngrok
 
 
 MASTER = "@simple_complexity"
@@ -45,9 +50,81 @@ BUTTON_INSERT_INTO_DB = bot_types.KeyboardButton(f"/{KEY_INSERT_INTO_DB}")
 FLAG_AWAITING_RSS = False
 POTENTIAL_RSS = None
 
+EXIT_EVENT = threading.Event()
+
+WEBHOOK = None
+try:
+    WEBHOOK = ngrok.connect(5000, bind_tls=True)
+    print(WEBHOOK)
+    time.sleep(1)
+    k = """curl --location --request POST \
+    'https://api.telegram.org/bot{api}/setWebhook' \
+    --header 'Content-Type: application/json' \
+    --data-raw '{{"url": "{uri}"}}' \
+    """.format(api=API, uri=WEBHOOK.public_url)
+    os.system(k)  # TODO subprocess
+    print()
+except Exception as error:
+    print("Failed to set a webhook. Error code:", "-"*10, error, "-"*10, sep="\n")
+    sys.exit(1)
+"""
+try:
+    # Block until CTRL-C or some other terminating event
+    ngrok_process.proc.wait()
+except KeyboardInterrupt:
+    print(" Shutting down server.")
+    ngrok.kill()
+"""
+
 app = Flask(__name__)
+SERVER = None
 
 class DataAlreadyExistsError(Exception): pass
+
+
+
+def main():
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTSTP, signal_handler)
+
+    global SERVER
+    SERVER = MainThread(app)
+    SERVER.start()
+
+    side_thread = threading.Thread(target=updater)
+    side_thread.start()
+
+    time.sleep(1)
+    print("I woke up (*・ω・)ﾉ")
+
+    side_thread.join()
+    SERVER.shutdown()
+
+    print("Go to sleep (´-ω-｀)…zZZ")
+    sys.exit(0)
+
+
+def signal_handler(signal, frame):
+    print("signal")
+    EXIT_EVENT.set()
+    stop_server()
+
+
+# <main>
+class MainThread(threading.Thread):
+    def __init__(self, app):
+        threading.Thread.__init__(self)
+        self.server = make_server('127.0.0.1', 5000, app)
+        self.ctx = app.app_context()
+        self.ctx.push()
+
+    def run(self):
+        print("starting a webhook")
+        self.server.serve_forever()
+
+    def shutdown(self):
+        print("stopping a webhook")
+        self.server.shutdown()
 
 
 @app.route("/", methods=['POST'])
@@ -146,18 +223,15 @@ def add_new_rss(rss, chat_id):
         writer = csv.writer(f)
         writer.writerow([rss, chat_id])
     print("db: a new entry")
+# </main>
 
-
-#bot.infinity_polling()
-
+# <updater>
 def updater():
     while True:
         print("check for updates")
-        time.sleep(4)
-
-side_thread = threading.Thread(target=updater)
-side_thread.start()
-
+        if EXIT_EVENT.wait(timeout=3):
+            break
+    print("ending updates")
 """
 #  http://feeds.bbci.co.uk/news/rss.xml
 python_feed = feedparser.parse('https://feeds.feedburner.com/PythonInsider')
@@ -171,4 +245,9 @@ for i in range(3):
     text = soup.text[:200]
     print(f"{text.strip()}...")
     print(python_feed.entries[i].link)
-    print()"""
+    print()
+"""
+# </updater>
+
+if __name__ == '__main__':
+    main()

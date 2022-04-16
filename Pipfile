@@ -8,6 +8,7 @@ pyTelegramBotAPI = "4.4.0"
 feedparser = "6.0.2"
 beautifulsoup4 = "4.11.0"
 Flask = "2.1.1"
+pyngrok = "5.1.0"
 
 [dev-packages]
 
