@@ -8,13 +8,16 @@ try:
     WEBHOOK = ngrok.connect(5000, bind_tls=True)
     print(WEBHOOK)
     time.sleep(0.5)
+
     k = """curl --location --request POST \
     'https://api.telegram.org/bot{api}/setWebhook' \
     --header 'Content-Type: application/json' \
     --data-raw '{{"url": "{uri}"}}' \
     """.format(api=API, uri=WEBHOOK.public_url)
+
     os.system(k)  # TODO subprocess
     print()
+
 except Exception as error:
     print("Failed to set a webhook. Error code:", "-"*10, error, "-"*10, sep="\n")
     sys.exit(1)

@@ -9,16 +9,16 @@ class SideThread(threading.Thread):
 
     def run(self):
         print("starting an updater")
-        self.updater()
-
+        while True:
+            self.updater()
+            if EXIT_EVENT.wait(timeout=100):
+                print("ending updates")
+                break
 
 
 def updater():
-    while True:
-        print("check for updates")
-        if EXIT_EVENT.wait(timeout=100):
-            break
-    print("ending updates")
+    print("check for updates")
+
 """
 #  http://feeds.bbci.co.uk/news/rss.xml
 python_feed = feedparser.parse('https://feeds.feedburner.com/PythonInsider')

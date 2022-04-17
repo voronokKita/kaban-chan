@@ -21,14 +21,14 @@ from pyngrok import ngrok
 MASTER = "@simple_complexity"
 
 KEY_CANCEL = "cancel"
-KEY_ADD_NEW_FEED = "add_rss_feed"
-KEY_INSERT_INTO_DB = "start_tracking_rss"
+KEY_ADD_NEW_FEED = "add_new_feed"
+KEY_INSERT_INTO_DB = "start_tracking_feed"
 
 EXIT_EVENT = threading.Event()
 
 USERS = {}
-AWAITING_RSS = "AWAITING_RSS"
-POTENTIAL_RSS = "POTENTIAL_RSS"
+AWAITING_RSS = "AWAITING_FEED"
+POTENTIAL_RSS = "POTENTIAL_FEED"
 
 WEBHOOK = None
 SERVER = None

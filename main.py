@@ -1,9 +1,12 @@
+#!/usr/bin/env python
 # TODO read all:
     # https://core.telegram.org/bots/api#available-types
     # https://github.com/eternnoir/pyTelegramBotAPI
 # TODO logging
 # TODO testing
 # TODO order
+# TODO see/edit/delete feeds
+# TODO cath exceptions
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/

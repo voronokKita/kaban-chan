@@ -16,6 +16,11 @@ class MainThread(threading.Thread):
 
     def shutdown(self):
         print("stopping a webhook")
+        for uid in USERS:
+            markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
+            text = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
+            markup.add(BUTTON_ADD_NEW_FEED)
+            bot.send_message(uid, text, reply_markup=markup)
         self.server.shutdown()
 
 
@@ -25,7 +30,7 @@ def hello(message):
     markup.add(BUTTON_ADD_NEW_FEED)
     bot.send_message(message.chat.id, f"Hello, @{message.chat.username}!")
     time.sleep(1)
-    text = f"Use /{KEY_ADD_NEW_FEED} button. I will check your RSS from time to time and notify when something new comes up~"
+    text = f"Use /{KEY_ADD_NEW_FEED} button. I will check your web feed from time to time and notify when something new comes up~"
     bot.send_message(message.chat.id, text, reply_markup=markup)
 
 
@@ -42,7 +47,7 @@ def add_rss(message):
     text = ""
 
     if not USERS[uid][AWAITING_RSS] and message.text == f"/{KEY_ADD_NEW_FEED}":
-        text = "Send me a URI of your RSS. I'll check it out."
+        text = "Send me a URI of your web feed. I'll check it out."
         markup.add(BUTTON_CANCEL)
         USERS[uid][AWAITING_RSS] = True
 
@@ -58,7 +63,7 @@ def add_rss(message):
             text = f"Something went wrong :C Please notify the master {MASTER} about this. Error text:\n{error}"
             markup.add(BUTTON_CANCEL)
         else:
-            text = "RSS added!"
+            text = "Web feed added!"
             markup.add(BUTTON_ADD_NEW_FEED)
             USERS.pop(uid)
 
@@ -81,7 +86,7 @@ def get_text_data(message):
         except:
             text = "Can't read the feed. Check for errors or try again later."
         else:
-            text = f"All is fine — I managed to read the RSS! Press /{KEY_INSERT_INTO_DB} button to conform."
+            text = f"All is fine — I managed to read the feed! Press /{KEY_INSERT_INTO_DB} button to conform."
             markup.add(BUTTON_INSERT_INTO_DB)
             USERS[uid][POTENTIAL_RSS] = rss
         finally:
