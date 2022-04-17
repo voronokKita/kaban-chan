@@ -1,5 +1,5 @@
 from variables import *
-from telebot import bot
+from bot_config import bot
 
 
 app = Flask(__name__)
@@ -7,7 +7,7 @@ app = Flask(__name__)
 try:
     WEBHOOK = ngrok.connect(5000, bind_tls=True)
     print(WEBHOOK)
-    time.sleep(1)
+    time.sleep(0.5)
     k = """curl --location --request POST \
     'https://api.telegram.org/bot{api}/setWebhook' \
     --header 'Content-Type: application/json' \

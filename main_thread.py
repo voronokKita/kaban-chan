@@ -1,14 +1,14 @@
-from telebot import bot, BUTTON_CANCEL, BUTTON_ADD_NEW_FEED, BUTTON_INSERT_INTO_DB
+from bot_config import bot, bot_types, BUTTON_CANCEL, BUTTON_ADD_NEW_FEED, BUTTON_INSERT_INTO_DB
 from webhook import app
 from variables import *
 
 
 class MainThread(threading.Thread):
-    def __init__(self, app):
+    def __init__(self):
         threading.Thread.__init__(self)
         self.server = make_server('127.0.0.1', 5000, app)
-        self.ctx = app.app_context()
-        self.ctx.push()
+        self.context = app.app_context()
+        self.context.push()
 
     def run(self):
         print("starting a webhook")
@@ -36,46 +36,46 @@ def help(message):
 
 @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
 def add_rss(message):
-    global FLAG_AWAITING_RSS, POTENTIAL_RSS
+    uid = message.chat.id
+    USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
     text = ""
-    if not FLAG_AWAITING_RSS and message.text == f"/{KEY_ADD_NEW_FEED}":
+
+    if not USERS[uid][AWAITING_RSS] and message.text == f"/{KEY_ADD_NEW_FEED}":
         text = "Send me a URI of your RSS. I'll check it out."
         markup.add(BUTTON_CANCEL)
-        FLAG_AWAITING_RSS = True
+        USERS[uid][AWAITING_RSS] = True
 
     elif message.text == f"/{KEY_CANCEL}":
         text = "Cancelled~"
         markup.add(BUTTON_ADD_NEW_FEED)
-        FLAG_AWAITING_RSS = False
-        POTENTIAL_RSS = None
+        USERS.pop(uid)
 
-    elif FLAG_AWAITING_RSS and POTENTIAL_RSS and message.text == f"/{KEY_INSERT_INTO_DB}":
+    elif USERS[uid][AWAITING_RSS] and USERS[uid][POTENTIAL_RSS] and message.text == f"/{KEY_INSERT_INTO_DB}":
         try:
-            add_new_rss(POTENTIAL_RSS, str(message.chat.id))
+            add_new_rss(USERS[uid][POTENTIAL_RSS], str(uid))
         except Exception as error:
             text = f"Something went wrong :C Please notify the master {MASTER} about this. Error text:\n{error}"
             markup.add(BUTTON_CANCEL)
         else:
             text = "RSS added!"
             markup.add(BUTTON_ADD_NEW_FEED)
-            FLAG_AWAITING_RSS = False
-            POTENTIAL_RSS = None
+            USERS.pop(uid)
 
     if text:
-        bot.send_message(message.chat.id, text, reply_markup=markup)
+        bot.send_message(uid, text, reply_markup=markup)
 
 
 @bot.message_handler(content_types=['text'])
 def get_text_data(message):
-    global POTENTIAL_RSS
+    uid = message.chat.id
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
     text = ""
-    if FLAG_AWAITING_RSS:
+    if USERS.get(uid) and USERS[uid][AWAITING_RSS]:
         rss = message.text.strip()
         try:
             feedparser.parse(rss).feed.title
-            check_out_rss(rss, str(message.chat.id))
+            check_out_rss(rss, str(uid))
         except DataAlreadyExistsError:
             text = "I already watch this feed for you!"
         except:
@@ -83,12 +83,12 @@ def get_text_data(message):
         else:
             text = f"All is fine — I managed to read the RSS! Press /{KEY_INSERT_INTO_DB} button to conform."
             markup.add(BUTTON_INSERT_INTO_DB)
-            POTENTIAL_RSS = rss
+            USERS[uid][POTENTIAL_RSS] = rss
         finally:
             markup.add(BUTTON_CANCEL)
 
     if text:
-        bot.send_message(message.chat.id, text, reply_markup=markup)
+        bot.send_message(uid, text, reply_markup=markup)
     else:
         bot.reply_to(message, message.text)
 

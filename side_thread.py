@@ -1,6 +1,16 @@
 from variables import *
-from webhook import app
-from telebot import bot
+from bot_config import bot, bot_types
+
+
+class SideThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.updater = updater
+
+    def run(self):
+        print("starting an updater")
+        self.updater()
+
 
 
 def updater():

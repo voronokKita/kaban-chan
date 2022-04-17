@@ -20,7 +20,19 @@ from pyngrok import ngrok
 
 MASTER = "@simple_complexity"
 
+KEY_CANCEL = "cancel"
+KEY_ADD_NEW_FEED = "add_rss_feed"
+KEY_INSERT_INTO_DB = "start_tracking_rss"
+
 EXIT_EVENT = threading.Event()
+
+USERS = {}
+AWAITING_RSS = "AWAITING_RSS"
+POTENTIAL_RSS = "POTENTIAL_RSS"
+
+WEBHOOK = None
+SERVER = None
+UPDATER = None
 
 API = pathlib.Path.cwd() / ".api"
 with open(API) as f:
@@ -32,16 +44,5 @@ if not db.exists():
     with open(db, 'w', encoding='utf8') as f:
         writer = csv.writer(f)
         writer.writerow(DB_HEADERS)
-
-KEY_CANCEL = "cancel"
-KEY_ADD_NEW_FEED = "add_rss_feed"
-KEY_INSERT_INTO_DB = "start_tracking_rss"
-
-FLAG_AWAITING_RSS = False
-POTENTIAL_RSS = None
-
-SERVER = None
-WEBHOOK = None
-
 
 class DataAlreadyExistsError(Exception): pass
