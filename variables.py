@@ -25,6 +25,8 @@ KEY_ADD_NEW_FEED = "add_new_feed"
 KEY_INSERT_INTO_DB = "start_tracking_feed"
 
 EXIT_EVENT = threading.Event()
+NEW_MASSAGES_EVENT = threading.Event()
+NEW_MASSAGES = []
 
 USERS = {}
 AWAITING_RSS = "AWAITING_FEED"
@@ -33,6 +35,7 @@ POTENTIAL_RSS = "POTENTIAL_FEED"
 WEBHOOK = None
 SERVER = None
 UPDATER = None
+RECEIVERS = []
 
 API = pathlib.Path.cwd() / ".api"
 with open(API) as f:

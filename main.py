@@ -14,41 +14,62 @@ https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examp
 https://stackoverflow.com/a/45017691
 """
 from variables import *
-from main_thread import MainThread
-from side_thread import SideThread
-WTF = None
+from webhook import Webhook
+from bot_receiver import ReceiverThread
+from bot_updater import UpdaterThread
+
+
+def signal_handler(signal, frame):
+    print()
+    print(NEW_MASSAGES)
+    EXIT_EVENT.set()
+    NEW_MASSAGES_EVENT.set()
+
 
 def main():
     print("I woke up (*・ω・)ﾉ")
     time.sleep(1)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTSTP, signal_handler)
-    threading.excepthook = thread_exception
 
-    SERVER = MainThread()
-    SERVER.start()
+    SERVER = Webhook()
+    SERVER.run()
 
-    UPDATER = SideThread()
-    UPDATER.start()
+    UPDATER = UpdaterThread()
+    UPDATER.run()
 
     time.sleep(1.5)
     print("All work has started (´｡• ω •｡`)")
 
-    UPDATER.join()
-    SERVER.shutdown()
-    SERVER.join()
+    global NEW_MASSAGES
+    while True:
+        if NEW_MASSAGES_EVENT.wait():
+            if EXIT_EVENT.is_set():
+                print("stopping a receiver")
+                break
+
+            massages = NEW_MASSAGES.copy()
+            NEW_MASSAGES = []
+
+            for massage in massages:  # TODO
+                RECEIVER = ReceiverThread(massage)
+                RECEIVER.start()
+                RECEIVER.join()
+
+            if not NEW_MASSAGES:
+                NEW_MASSAGES_EVENT.clear()
+            else:
+                continue
+
+    try:
+        UPDATER.join()
+        SERVER.shutdown()
+    except Exception as error:
+        SERVER.shutdown()
+        raise error
 
     print("Go to sleep (´-ω-｀)…zZZ")
     sys.exit(0)
-
-
-def signal_handler(signal, frame):
-    print()
-    EXIT_EVENT.set()
-
-
-def thread_exception():
-    print("AAAA")
 
 
 if __name__ == '__main__':

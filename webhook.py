@@ -1,5 +1,4 @@
 from variables import *
-from bot_config import bot
 
 
 app = Flask(__name__)
@@ -19,22 +18,32 @@ try:
     print()
 
 except Exception as error:
-    print("Failed to set a webhook. Error code:", "-"*10, error, "-"*10, sep="\n")
+    print("Failed to set an ngrok. Error code:", "-"*10, error, "-"*10, sep="\n")
     sys.exit(1)
-"""
-try:
-    # Block until CTRL-C or some other terminating event
-    ngrok_process.proc.wait()
-except KeyboardInterrupt:
-    print(" Shutting down server.")
-    ngrok.kill()
-"""
+
+
+class Webhook():
+    def __init__(self):
+        self.server = make_server('127.0.0.1', 5000, app)
+        self.context = app.app_context()
+        self.context.push()
+
+    def run(self):
+        print("starting a webhook")
+        self.server.serve_forever()
+
+    def shutdown(self):
+        print("stopping a webhook")
+        self.server.shutdown()
 
 
 @app.route("/", methods=['POST'])
 def receiver():
+    global NEW_MASSAGES
     if request.headers.get('content-type') == 'application/json':
-        json = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json)
-        bot.process_new_updates([update])
+        data = request.get_data().decode('utf-8')
+        #data['message']['from']['id']
+        update = telebot.types.Update.de_json(data)
+        NEW_MASSAGES.append(update)
+        NEW_MASSAGES_EVENT.set()
     return ""

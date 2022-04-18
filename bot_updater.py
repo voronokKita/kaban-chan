@@ -1,22 +1,23 @@
+from bot_config import bot, bot_types, BUTTON_CANCEL, BUTTON_ADD_NEW_FEED, BUTTON_INSERT_INTO_DB
 from variables import *
-from bot_config import bot, bot_types
 
 
-class SideThread(threading.Thread):
+class UpdaterThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.updater = updater
+        self.exception = None
 
     def run(self):
         print("starting an updater")
-        self.exception = None
         while True:
             try:
                 self.updater()
             except Exception as error:
+                print("error in updater")  # TODO gentle stop
                 self.exception = error
             if EXIT_EVENT.wait(timeout=100):
-                print("ending updates")
+                print("stopping an updater")
                 break
 
     def join(self):

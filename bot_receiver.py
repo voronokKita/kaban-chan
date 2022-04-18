@@ -1,28 +1,26 @@
 from bot_config import bot, bot_types, BUTTON_CANCEL, BUTTON_ADD_NEW_FEED, BUTTON_INSERT_INTO_DB
-from webhook import app
 from variables import *
 
 
-class MainThread(threading.Thread):
-    def __init__(self):
+class ReceiverThread(threading.Thread):
+    def __init__(self, massage):
         threading.Thread.__init__(self)
-        self.server = make_server('127.0.0.1', 5000, app)
-        self.context = app.app_context()
-        self.context.push()
+        self.exception = None
+        self.massage = massage
 
     def run(self):
-        print("starting a webhook")
-        self.exception = None
-        self.server.serve_forever()
+        try:
+            bot.process_new_updates([self.massage])
+        except Exception as error:
+            print("error in updater")  # TODO gentle stop
+            self.exception = error
 
     def shutdown(self):
-        print("stopping a webhook")
         for uid in USERS:
             markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
             text = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
             markup.add(BUTTON_ADD_NEW_FEED)
             bot.send_message(uid, text, reply_markup=markup)
-        self.server.shutdown()
 
     def join(self):
         threading.Thread.join(self)
