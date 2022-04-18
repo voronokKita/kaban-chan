@@ -12,6 +12,7 @@ class MainThread(threading.Thread):
 
     def run(self):
         print("starting a webhook")
+        self.exception = None
         self.server.serve_forever()
 
     def shutdown(self):
@@ -22,6 +23,11 @@ class MainThread(threading.Thread):
             markup.add(BUTTON_ADD_NEW_FEED)
             bot.send_message(uid, text, reply_markup=markup)
         self.server.shutdown()
+
+    def join(self):
+        threading.Thread.join(self)
+        if self.exception:
+            raise self.exception
 
 
 @bot.message_handler(commands=['start'])
@@ -42,6 +48,7 @@ def help(message):
 @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
 def add_rss(message):
     uid = message.chat.id
+    global USERS
     USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
     text = ""
@@ -73,6 +80,7 @@ def add_rss(message):
 
 @bot.message_handler(content_types=['text'])
 def get_text_data(message):
+    global USERS
     uid = message.chat.id
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
     text = ""

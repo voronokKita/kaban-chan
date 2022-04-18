@@ -16,13 +16,14 @@ https://stackoverflow.com/a/45017691
 from variables import *
 from main_thread import MainThread
 from side_thread import SideThread
-
+WTF = None
 
 def main():
     print("I woke up (*・ω・)ﾉ")
     time.sleep(1)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTSTP, signal_handler)
+    threading.excepthook = thread_exception
 
     SERVER = MainThread()
     SERVER.start()
@@ -44,6 +45,10 @@ def main():
 def signal_handler(signal, frame):
     print()
     EXIT_EVENT.set()
+
+
+def thread_exception():
+    print("AAAA")
 
 
 if __name__ == '__main__':

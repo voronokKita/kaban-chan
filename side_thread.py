@@ -9,11 +9,20 @@ class SideThread(threading.Thread):
 
     def run(self):
         print("starting an updater")
+        self.exception = None
         while True:
-            self.updater()
+            try:
+                self.updater()
+            except Exception as error:
+                self.exception = error
             if EXIT_EVENT.wait(timeout=100):
                 print("ending updates")
                 break
+
+    def join(self):
+        threading.Thread.join(self)
+        if self.exception:
+            raise self.exception
 
 
 def updater():
