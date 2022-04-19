@@ -1,33 +1,32 @@
 from bot_config import bot, bot_types, BUTTON_CANCEL, BUTTON_ADD_NEW_FEED, BUTTON_INSERT_INTO_DB
-from webhook import app
 from variables import *
 
 
-class MainThread(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.server = make_server('127.0.0.1', 5000, app)
-        self.context = app.app_context()
-        self.context.push()
+def receiver_start():
+    print("starting a receiver")
+    AWAITING_MESSAGES_EVENT.set()
+    while True:
+        if NEW_MESSAGES_EVENT.wait():
+            if EXIT_EVENT.is_set():
+                print("stopping a receiver")
+                receiver_stop()
+                break
+            with open(MESSAGES_SOCKET, 'r', encoding='utf8') as f:
+                data = f.read()
+                message = telebot.types.Update.de_json(data)
+                bot.process_new_updates([message])
+            with open(MESSAGES_SOCKET, 'w', encoding='utf8') as f:
+                f.write("")
+            NEW_MESSAGES_EVENT.clear()
+            AWAITING_MESSAGES_EVENT.set()
 
-    def run(self):
-        print("starting a webhook")
-        self.exception = None
-        self.server.serve_forever()
 
-    def shutdown(self):
-        print("stopping a webhook")
-        for uid in USERS:
-            markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
-            text = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
-            markup.add(BUTTON_ADD_NEW_FEED)
-            bot.send_message(uid, text, reply_markup=markup)
-        self.server.shutdown()
-
-    def join(self):
-        threading.Thread.join(self)
-        if self.exception:
-            raise self.exception
+def receiver_stop():
+    for uid in USERS:
+        markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(BUTTON_ADD_NEW_FEED)
+        text = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
+        bot.send_message(uid, text, reply_markup=markup)
 
 
 @bot.message_handler(commands=['start'])
@@ -47,8 +46,8 @@ def help(message):
 
 @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
 def add_rss(message):
-    uid = message.chat.id
     global USERS
+    uid = message.chat.id
     USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
     text = ""

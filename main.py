@@ -14,29 +14,45 @@ https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examp
 https://stackoverflow.com/a/45017691
 """
 from variables import *
-from main_thread import MainThread
-from side_thread import SideThread
-WTF = None
+from bot_config import bot
+from webhook import WebhookThread
+from bot_receiver import receiver_stop
+from bot_updater import UpdaterThread
+
 
 def main():
     print("I woke up (*・ω・)ﾉ")
     time.sleep(1)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTSTP, signal_handler)
-    threading.excepthook = thread_exception
 
-    SERVER = MainThread()
-    SERVER.start()
+    server = WebhookThread()
+    try:  # TODO
+        server.start()
+    except Exception as error:
+        print("Failed to set a webhook!\n", "-"*20)
+        raise error
 
-    UPDATER = SideThread()
-    UPDATER.start()
+    updater = UpdaterThread()
+    updater.start()
 
-    time.sleep(1.5)
+    time.sleep(2)
     print("All work has started (´｡• ω •｡`)")
 
-    UPDATER.join()
-    SERVER.shutdown()
-    SERVER.join()
+    try:  # TODO
+        receiver_start()
+    except Exception as error:
+        print("Failed to set a webhook!\n", "-"*20)
+        raise error
+
+    try:  # TODO
+        updater.join()
+    except Exception as error:
+        print("Error in updater!\n", "-"*20)
+        raise error
+    finally:
+        server.shutdown()
+        server.join()
 
     print("Go to sleep (´-ω-｀)…zZZ")
     sys.exit(0)
@@ -45,10 +61,7 @@ def main():
 def signal_handler(signal, frame):
     print()
     EXIT_EVENT.set()
-
-
-def thread_exception():
-    print("AAAA")
+    NEW_MESSAGES_EVENT.set()
 
 
 if __name__ == '__main__':
