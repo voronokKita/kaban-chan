@@ -16,13 +16,12 @@ https://stackoverflow.com/a/45017691
 from variables import *
 from bot_config import bot
 from webhook import WebhookThread
-from bot_receiver import receiver_stop
 from bot_updater import UpdaterThread
 
 
 def main():
     print("I woke up (*・ω・)ﾉ")
-    time.sleep(1)
+    time.sleep(0.2)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTSTP, signal_handler)
 
@@ -54,13 +53,6 @@ def main():
         server.shutdown()
         server.join()
 
-            massages = NEW_MASSAGES.copy()
-            NEW_MASSAGES = []
-
-            for massage in massages:  # TODO
-                RECEIVER = ReceiverThread(massage)
-                RECEIVER.start()
-                RECEIVER.join()
 
 def signal_handler(signal, frame):
     print()

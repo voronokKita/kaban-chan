@@ -15,7 +15,7 @@ class UpdaterThread(threading.Thread):
             try:
                 self.updater()
             except Exception as error:
-                print("error in updater")  # TODO gentle stop
+                print("error in updater")
                 self.exception = error
                 EXIT_EVENT.set()
             if EXIT_EVENT.wait(timeout=self.timeout):
