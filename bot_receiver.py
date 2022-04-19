@@ -2,30 +2,31 @@ from bot_config import bot, bot_types, BUTTON_CANCEL, BUTTON_ADD_NEW_FEED, BUTTO
 from variables import *
 
 
-class ReceiverThread(threading.Thread):
-    def __init__(self, massage):
-        threading.Thread.__init__(self)
-        self.exception = None
-        self.massage = massage
+def receiver_start():
+    print("starting a receiver")
+    AWAITING_MESSAGES_EVENT.set()
+    while True:
+        if NEW_MESSAGES_EVENT.wait():
+            if EXIT_EVENT.is_set():
+                print("stopping a receiver")
+                receiver_stop()
+                break
+            with open(MESSAGES_SOCKET, 'r', encoding='utf8') as f:
+                data = f.read()
+                message = telebot.types.Update.de_json(data)
+                bot.process_new_updates([message])
+            with open(MESSAGES_SOCKET, 'w', encoding='utf8') as f:
+                f.write("")
+            NEW_MESSAGES_EVENT.clear()
+            AWAITING_MESSAGES_EVENT.set()
 
-    def run(self):
-        try:
-            bot.process_new_updates([self.massage])
-        except Exception as error:
-            print("error in updater")  # TODO gentle stop
-            self.exception = error
 
-    def shutdown(self):
-        for uid in USERS:
-            markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
-            text = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
-            markup.add(BUTTON_ADD_NEW_FEED)
-            bot.send_message(uid, text, reply_markup=markup)
-
-    def join(self):
-        threading.Thread.join(self)
-        if self.exception:
-            raise self.exception
+def receiver_stop():
+    for uid in USERS:
+        markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(BUTTON_ADD_NEW_FEED)
+        text = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
+        bot.send_message(uid, text, reply_markup=markup)
 
 
 @bot.message_handler(commands=['start'])
@@ -45,8 +46,8 @@ def help(message):
 
 @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
 def add_rss(message):
-    uid = message.chat.id
     global USERS
+    uid = message.chat.id
     USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
     markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
     text = ""

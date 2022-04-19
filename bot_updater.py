@@ -6,6 +6,7 @@ class UpdaterThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.updater = updater
+        self.timeout = 100
         self.exception = None
 
     def run(self):
@@ -16,7 +17,8 @@ class UpdaterThread(threading.Thread):
             except Exception as error:
                 print("error in updater")  # TODO gentle stop
                 self.exception = error
-            if EXIT_EVENT.wait(timeout=100):
+                EXIT_EVENT.set()
+            if EXIT_EVENT.wait(timeout=self.timeout):
                 print("stopping an updater")
                 break
 

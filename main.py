@@ -14,16 +14,10 @@ https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examp
 https://stackoverflow.com/a/45017691
 """
 from variables import *
-from webhook import Webhook
-from bot_receiver import ReceiverThread
+from bot_config import bot
+from webhook import WebhookThread
+from bot_receiver import receiver_stop
 from bot_updater import UpdaterThread
-
-
-def signal_handler(signal, frame):
-    print()
-    print(NEW_MASSAGES)
-    EXIT_EVENT.set()
-    NEW_MASSAGES_EVENT.set()
 
 
 def main():
@@ -32,21 +26,33 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTSTP, signal_handler)
 
-    SERVER = Webhook()
-    SERVER.run()
+    server = WebhookThread()
+    try:  # TODO
+        server.start()
+    except Exception as error:
+        print("Failed to set a webhook!\n", "-"*20)
+        raise error
 
-    UPDATER = UpdaterThread()
-    UPDATER.run()
+    updater = UpdaterThread()
+    updater.start()
 
-    time.sleep(1.5)
+    time.sleep(2)
     print("All work has started (´｡• ω •｡`)")
 
-    global NEW_MASSAGES
-    while True:
-        if NEW_MASSAGES_EVENT.wait():
-            if EXIT_EVENT.is_set():
-                print("stopping a receiver")
-                break
+    try:  # TODO
+        receiver_start()
+    except Exception as error:
+        print("Failed to set a webhook!\n", "-"*20)
+        raise error
+
+    try:  # TODO
+        updater.join()
+    except Exception as error:
+        print("Error in updater!\n", "-"*20)
+        raise error
+    finally:
+        server.shutdown()
+        server.join()
 
             massages = NEW_MASSAGES.copy()
             NEW_MASSAGES = []
@@ -56,20 +62,10 @@ def main():
                 RECEIVER.start()
                 RECEIVER.join()
 
-            if not NEW_MASSAGES:
-                NEW_MASSAGES_EVENT.clear()
-            else:
-                continue
-
-    try:
-        UPDATER.join()
-        SERVER.shutdown()
-    except Exception as error:
-        SERVER.shutdown()
-        raise error
-
-    print("Go to sleep (´-ω-｀)…zZZ")
-    sys.exit(0)
+def signal_handler(signal, frame):
+    print()
+    EXIT_EVENT.set()
+    NEW_MESSAGES_EVENT.set()
 
 
 if __name__ == '__main__':
