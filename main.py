@@ -4,9 +4,7 @@
     # https://github.com/eternnoir/pyTelegramBotAPI
 # TODO logging
 # TODO testing
-# TODO order
 # TODO see/edit/delete feeds
-# TODO cath exceptions
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/
@@ -14,44 +12,42 @@ https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examp
 https://stackoverflow.com/a/45017691
 """
 from variables import *
-from bot_config import bot
 from webhook import WebhookThread
 from bot_updater import UpdaterThread
+from bot_receiver import ReceiverThread
 
 
 def main():
     print("I woke up (*・ω・)ﾉ")
     time.sleep(0.2)
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTSTP, signal_handler)
 
     server = WebhookThread()
-    try:  # TODO
-        server.start()
-    except Exception as error:
-        print("Failed to set a webhook!\n", "-"*20)
-        raise error
-
+    receiver = ReceiverThread()
     updater = UpdaterThread()
+
+    server.start()
+    receiver.start()
     updater.start()
 
-    time.sleep(2)
+    time.sleep(3)
     print("All work has started (´｡• ω •｡`)")
 
-    try:  # TODO
-        receiver_start()
-    except Exception as error:
-        print("Failed to set a webhook!\n", "-"*20)
-        raise error
-
-    try:  # TODO
-        updater.join()
-    except Exception as error:
-        print("Error in updater!\n", "-"*20)
-        raise error
-    finally:
+    if EXIT_EVENT.wait():
+        NEW_MESSAGES_EVENT.set()
         server.shutdown()
-        server.join()
+
+    errors = []
+    for thread in [server, receiver, updater]:
+        try:
+            thread.join()
+        except Exception as error:
+            errors.append(error)
+
+    print("Go to sleep (´-ω-｀)…zZZ")
+    if errors:
+        raise errors[0]
+    else:
+        sys.exit(0)
 
 
 def signal_handler(signal, frame):
@@ -61,4 +57,6 @@ def signal_handler(signal, frame):
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTSTP, signal_handler)
     main()

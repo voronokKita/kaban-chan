@@ -24,6 +24,10 @@ KEY_CANCEL = "cancel"
 KEY_ADD_NEW_FEED = "add_new_feed"
 KEY_INSERT_INTO_DB = "start_tracking_feed"
 
+BUTTON_CANCEL = bot_types.KeyboardButton(f"/{KEY_CANCEL}")
+BUTTON_ADD_NEW_FEED = bot_types.KeyboardButton(f"/{KEY_ADD_NEW_FEED}")
+BUTTON_INSERT_INTO_DB = bot_types.KeyboardButton(f"/{KEY_INSERT_INTO_DB}")
+
 EXIT_EVENT = threading.Event()
 NEW_MESSAGES_EVENT = threading.Event()
 AWAITING_MESSAGES_EVENT = threading.Event()
