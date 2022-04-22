@@ -1,6 +1,6 @@
 .api
-.database.csv
-.messages_socket
+database.csv
+messages_socket
 Pipfile.lock
 .vscode
 

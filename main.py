@@ -5,6 +5,7 @@
 # TODO logging
 # TODO testing
 # TODO see/edit/delete feeds
+# TODO delete buttons?
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/

@@ -7,10 +7,12 @@ class ReceiverThread(threading.Thread):
         self.bot = None
         self.exception = None
 
+
     def join(self):
         threading.Thread.join(self)
         if self.exception:
             raise self.exception
+
 
     def run(self):
         print("starting a receiver")
@@ -22,6 +24,7 @@ class ReceiverThread(threading.Thread):
             print("error in a receiver:", error)
             self.exception = error
             EXIT_EVENT.set()
+
 
     def _handler(self):
         while True:
@@ -39,12 +42,12 @@ class ReceiverThread(threading.Thread):
                 NEW_MESSAGES_EVENT.clear()
                 AWAITING_MESSAGES_EVENT.set()
 
+
     def _receiver_stop(self):
         for uid in USERS:
-            markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
-            markup.add(BUTTON_ADD_NEW_FEED)
             text = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
-            bot.send_message(uid, text, reply_markup=markup)
+            self.bot.send_message(uid, text)
+
 
     def _receiver(self):
         bot = telebot.TeleBot(API)
@@ -52,17 +55,19 @@ class ReceiverThread(threading.Thread):
 
         @bot.message_handler(commands=['start'])
         def hello(message):
-            markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
-            markup.add(BUTTON_ADD_NEW_FEED)
+            global USERS
+            uid = message.chat.id
+            if USERS.get(uid):
+                USERS.pop(uid)
             bot.send_message(message.chat.id, f"Hello, @{message.chat.username}!")
             time.sleep(1)
-            text = f"Use /{KEY_ADD_NEW_FEED} button. I will check your web feed from time to time and notify when something new comes up~"
-            bot.send_message(message.chat.id, text, reply_markup=markup)
+            text = f"Use {COMMAND_ADD} command. I will check your web feed from time to time and notify when something new comes up~"
+            bot.send_message(message.chat.id, text)
 
 
         @bot.message_handler(commands=['help'])
         def help(message):
-            bot.send_message(message.chat.id, "One bot to learn them all.")
+            bot.send_message(message.chat.id, HELP)
 
 
         @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
@@ -70,40 +75,67 @@ class ReceiverThread(threading.Thread):
             global USERS
             uid = message.chat.id
             USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
-            markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
             text = ""
 
-            if not USERS[uid][AWAITING_RSS] and message.text == f"/{KEY_ADD_NEW_FEED}":
+            if not USERS[uid][AWAITING_RSS] and message.text == COMMAND_ADD:
                 text = "Send me a URI of your web feed. I'll check it out."
-                markup.add(BUTTON_CANCEL)
                 USERS[uid][AWAITING_RSS] = True
 
-            elif message.text == f"/{KEY_CANCEL}":
+            elif message.text == COMMAND_CANCEL:
                 text = "Cancelled~"
-                markup.add(BUTTON_ADD_NEW_FEED)
                 USERS.pop(uid)
 
-            elif USERS[uid][AWAITING_RSS] and USERS[uid][POTENTIAL_RSS] and message.text == f"/{KEY_INSERT_INTO_DB}":
+            elif USERS[uid][AWAITING_RSS] and USERS[uid][POTENTIAL_RSS] and message.text == COMMAND_INSERT:
                 try:
-                    add_new_rss(USERS[uid][POTENTIAL_RSS], str(uid))
+                    add_new_rss(USERS[uid][POTENTIAL_RSS], uid)
                 except Exception as error:
                     text = f"Something went wrong :C Please notify the master {MASTER} about this. Error text:\n{error}"
-                    markup.add(BUTTON_CANCEL)
                 else:
-                    text = "Web feed added!"
-                    markup.add(BUTTON_ADD_NEW_FEED)
+                    text = "New web feed added!"
                     USERS.pop(uid)
 
-            if text:
-                bot.send_message(uid, text, reply_markup=markup)
+            else:
+                text = f"You can use {COMMAND_CANCEL} to go back."
+
+            bot.send_message(uid, text)
+
+
+        @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])
+        def list_rss(message):
+            global USERS
+            uid = message.chat.id
+            text = ""
+
+            if USERS.get(uid) and USERS[uid][AWAITING_RSS]:
+                text = f"You can use {COMMAND_CANCEL} to go back."
+
+            elif message.text == COMMAND_LIST:
+                list_of_feeds = ""
+                with open(db) as f:
+                    reader = csv.DictReader(f, DB_HEADERS)
+                    i = 1
+                    for line in reader:
+                        if line["chat_id"] == str(uid):
+                            list_of_feeds += f"{i}. {line['feed']}\n"
+                            i += 1
+                if list_of_feeds:
+                    text += list_of_feeds
+                    text += f"\nTo delete an entry use: {COMMAND_DELETE} [number]"
+                else:
+                    text += "There is none!"
+
+            elif DELETE_PATTERN.fullmatch(message.text.strip()):
+                text = "Make love!"
+
+            bot.send_message(uid, text)
 
 
         @bot.message_handler(content_types=['text'])
         def get_text_data(message):
             global USERS
             uid = message.chat.id
-            markup = bot_types.ReplyKeyboardMarkup(resize_keyboard=True)
             text = ""
+
             if USERS.get(uid) and USERS[uid][AWAITING_RSS]:
                 rss = message.text.strip()
                 try:
@@ -114,14 +146,11 @@ class ReceiverThread(threading.Thread):
                 except:
                     text = "Can't read the feed. Check for errors or try again later."
                 else:
-                    text = f"All is fine — I managed to read the feed! Press /{KEY_INSERT_INTO_DB} button to conform."
-                    markup.add(BUTTON_INSERT_INTO_DB)
+                    text = f"All is fine — I managed to read the feed! Use the {COMMAND_INSERT} command to finnish."
                     USERS[uid][POTENTIAL_RSS] = rss
-                finally:
-                    markup.add(BUTTON_CANCEL)
 
             if text:
-                bot.send_message(uid, text, reply_markup=markup)
+                bot.send_message(uid, text)
             else:
                 bot.reply_to(message, message.text)
 
@@ -130,12 +159,12 @@ class ReceiverThread(threading.Thread):
             with open(db) as f:
                 reader = csv.DictReader(f, DB_HEADERS)
                 for line in reader:
-                    if line["chat_id"] == chat_id and line["feed"] == rss:
+                    if line['chat_id'] == chat_id and line['feed'] == rss:
                         raise DataAlreadyExistsError()
 
 
         def add_new_rss(rss, chat_id):
-            with open(db, 'a', encoding='utf8') as f:
+            with open(db, 'a') as f:
                 writer = csv.writer(f)
                 writer.writerow([rss, chat_id])
             print("db: a new entry")
