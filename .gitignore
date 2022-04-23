@@ -1,8 +1,11 @@
+.vscode
+
+resources/
 .api
 database.csv
+database.db
 messages_socket
 Pipfile.lock
-.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

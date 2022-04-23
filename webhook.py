@@ -1,5 +1,9 @@
 from variables import *
 
+from pyngrok import ngrok
+from flask import Flask, request
+from werkzeug.serving import make_server
+
 
 class WebhookThread(threading.Thread):
     def __init__(self):
@@ -15,6 +19,7 @@ class WebhookThread(threading.Thread):
             self._make_tunnel()
             app = self._flask_app()
             self.server = make_server('127.0.0.1', 5000, app)
+            READY_TO_WORK.set()
             self.server.serve_forever()
         except Exception as error:
             print("error in a webhook:", error)

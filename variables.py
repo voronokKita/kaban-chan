@@ -13,10 +13,6 @@ from bs4 import BeautifulSoup
 
 import telebot
 
-from pyngrok import ngrok
-from flask import Flask, request
-from werkzeug.serving import make_server
-
 
 MASTER = "@simple_complexity"
 
@@ -42,6 +38,7 @@ HELP = """
 """.format(add=COMMAND_ADD, confirm=COMMAND_INSERT, cancel=COMMAND_CANCEL,
            list=COMMAND_LIST, delete=COMMAND_DELETE)
 
+READY_TO_WORK = threading.Event()
 EXIT_EVENT = threading.Event()
 NEW_MESSAGES_EVENT = threading.Event()
 AWAITING_MESSAGES_EVENT = threading.Event()
@@ -50,7 +47,7 @@ USERS = {}
 AWAITING_RSS = "AWAITING_FEED"
 POTENTIAL_RSS = "POTENTIAL_FEED"
 
-API = pathlib.Path.cwd() / ".api"
+API = pathlib.Path.cwd() / "resources" / ".api"
 if API.exists():
     with open(API) as f:
         API = f.read().strip()
@@ -60,10 +57,11 @@ else:
     while not API:
         API = input().strip()
 
-MESSAGES_SOCKET = pathlib.Path.cwd() / "messages_socket"
+MESSAGES_SOCKET = pathlib.Path.cwd() / "resources" / "messages_socket"
 
+DB = pathlib.Path.cwd() / "resources" / "database.db"
 DB_HEADERS = ['feed', 'chat_id', 'last_update']
-db = pathlib.Path.cwd() / "database.csv"
+db = pathlib.Path.cwd() / "resources" / "database.csv"
 if not db.exists():
     with open(db, 'w', encoding='utf8') as f:
         writer = csv.writer(f)
