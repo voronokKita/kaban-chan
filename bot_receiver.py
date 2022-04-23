@@ -16,7 +16,6 @@ class ReceiverThread(threading.Thread):
 
     def run(self):
         print("starting a receiver")
-        AWAITING_MESSAGES_EVENT.set()
         try:
             self.bot = self._receiver()
             self._handler()
@@ -33,15 +32,17 @@ class ReceiverThread(threading.Thread):
                     print("stopping a receiver")
                     self._receiver_stop()
                     break
-                with open(MESSAGES_SOCKET, 'r', encoding='utf8') as f:
-                    data = f.read()
-                    message = telebot.types.Update.de_json(data)
-                    self.bot.process_new_updates([message])
-                with open(MESSAGES_SOCKET, 'w', encoding='utf8') as f:
-                    f.write("")
-                NEW_MESSAGES_EVENT.clear()
-                AWAITING_MESSAGES_EVENT.set()
-
+                data = None
+                with SQLSession(db) as session:
+                    message = session.scalars( sql.select(WebhookDB) ).first()
+                    if message:
+                        data = message.data
+                        session.delete(message)
+                        session.commit()
+                        if not session.scalars( sql.select(WebhookDB) ).first():
+                            NEW_MESSAGES_EVENT.clear()
+                update = telebot.types.Update.de_json(data)
+                self.bot.process_new_updates([update])
 
     def _receiver_stop(self):
         for uid in USERS:
@@ -100,7 +101,7 @@ class ReceiverThread(threading.Thread):
             bot.send_message(uid, text)
 
 
-        @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])
+        @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])  #! TODO
         def list_rss(message):
             global USERS
             uid = message.chat.id
@@ -140,13 +141,13 @@ class ReceiverThread(threading.Thread):
                 rss = message.text.strip()
                 try:
                     feedparser.parse(rss).feed.title
-                    check_out_rss(rss, str(uid))
+                    check_out_rss(rss, uid)
                 except DataAlreadyExistsError:
                     text = "I already watch this feed for you!"
                 except:
                     text = "Can't read the feed. Check for errors or try again later."
                 else:
-                    text = f"All is fine — I managed to read the feed! Use the {COMMAND_INSERT} command to finnish."
+                    text = f"All is fine — I managed to read the feed! Use the {COMMAND_INSERT} command to complete."
                     USERS[uid][POTENTIAL_RSS] = rss
 
             if text:
@@ -156,17 +157,21 @@ class ReceiverThread(threading.Thread):
 
 
         def check_out_rss(rss, chat_id):
-            with open(db) as f:
-                reader = csv.DictReader(f, DB_HEADERS)
-                for line in reader:
-                    if line['chat_id'] == chat_id and line['feed'] == rss:
-                        raise DataAlreadyExistsError()
+            with SQLSession(db) as session:
+                result = session.scalars(
+                    sql.select(WebFeedsDB)
+                    .where(WebFeedsDB.user_id == chat_id,
+                           WebFeedsDB.web_feed == rss)
+                ).first()
+                if result:
+                    raise DataAlreadyExistsError()
 
 
         def add_new_rss(rss, chat_id):
-            with open(db, 'a') as f:
-                writer = csv.writer(f)
-                writer.writerow([rss, chat_id])
+            with SQLSession(db) as session:
+                new_entry = WebFeedsDB(user_id=chat_id, web_feed=rss)
+                session.add(new_entry)
+                session.commit()
             print("db: a new entry")
 
 

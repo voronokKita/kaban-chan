@@ -1,9 +1,5 @@
 from variables import *
 
-from pyngrok import ngrok
-from flask import Flask, request
-from werkzeug.serving import make_server
-
 
 class WebhookThread(threading.Thread):
     def __init__(self):
@@ -33,8 +29,8 @@ class WebhookThread(threading.Thread):
         k = """curl --location --request POST \
         'https://api.telegram.org/bot{api}/setWebhook' \
         --header 'Content-Type: application/json' \
-        --data-raw '{{"url": "{uri}"}}' \
-        """.format(api=API, uri=tunnel.public_url)
+        --data-raw '{{"url": "{url}/kaban-chan"}}' \
+        """.format(api=API, url=tunnel.public_url)
 
         os.system(k)  # TODO subprocess
         print()
@@ -42,19 +38,23 @@ class WebhookThread(threading.Thread):
     def _flask_app(self):
         app = Flask(__name__)
 
-        @app.route("/", methods=['POST'])
+        @app.route("/kaban-chan", methods=['POST'])
         def receiver():
-            global NEW_MASSAGES
-            if request.headers.get('content-type') == 'application/json':
-                if AWAITING_MESSAGES_EVENT.wait():
-                    data = request.get_data().decode('utf-8')
-                    with open(MESSAGES_SOCKET, 'w', encoding='utf8') as f:
-                        f.write(data)
-                    AWAITING_MESSAGES_EVENT.clear()
-                    NEW_MESSAGES_EVENT.set()
+            try:
+                if not request.headers.get('content-type') == 'application/json':
+                    raise
+                data = request.get_data().decode('utf-8')
+                telebot.types.Update.de_json(data)
+                with SQLSession(db) as session:
+                    new_message = WebhookDB(data=data)
+                    session.add(new_message)
+                    session.commit()
+                NEW_MESSAGES_EVENT.set()
+            except:
+                print("-"*10, "Alien Invasion", request.get_data().decode('utf-8'), "-"*10, sep="\n")
+                return "", 400
             else:
-                print("POST: undefined request")
-            return "", 200
+                return "", 200
 
         return app
 

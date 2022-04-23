@@ -8,13 +8,24 @@ import pathlib
 import datetime
 import threading
 
+import telebot
+
 import feedparser
 from bs4 import BeautifulSoup
 
-import telebot
+from pyngrok import ngrok
+from flask import Flask, request
+from werkzeug.serving import make_server
+
+import sqlalchemy as sql
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import Session as SQLSession
 
 
 MASTER = "@simple_complexity"
+
+class DataAlreadyExistsError(Exception): pass
+
 
 KEY_ADD_NEW_FEED = "add"
 KEY_INSERT_INTO_DB = "confirm"
@@ -38,14 +49,16 @@ HELP = """
 """.format(add=COMMAND_ADD, confirm=COMMAND_INSERT, cancel=COMMAND_CANCEL,
            list=COMMAND_LIST, delete=COMMAND_DELETE)
 
+
 READY_TO_WORK = threading.Event()
 EXIT_EVENT = threading.Event()
 NEW_MESSAGES_EVENT = threading.Event()
-AWAITING_MESSAGES_EVENT = threading.Event()
+
 
 USERS = {}
 AWAITING_RSS = "AWAITING_FEED"
 POTENTIAL_RSS = "POTENTIAL_FEED"
+
 
 API = pathlib.Path.cwd() / "resources" / ".api"
 if API.exists():
@@ -57,14 +70,24 @@ else:
     while not API:
         API = input().strip()
 
-MESSAGES_SOCKET = pathlib.Path.cwd() / "resources" / "messages_socket"
 
-DB = pathlib.Path.cwd() / "resources" / "database.db"
-DB_HEADERS = ['feed', 'chat_id', 'last_update']
-db = pathlib.Path.cwd() / "resources" / "database.csv"
-if not db.exists():
-    with open(db, 'w', encoding='utf8') as f:
-        writer = csv.writer(f)
-        writer.writerow(DB_HEADERS)
+DB_URI = pathlib.Path.cwd() / "resources" / "database.db"
+db = sql.create_engine(f"sqlite:///{DB_URI}", future=True)
+SQLAlchemyBase = declarative_base()
 
-class DataAlreadyExistsError(Exception): pass
+class WebFeedsDB(SQLAlchemyBase):
+    __tablename__ = "feeds"
+    id = sql.Column(sql.Integer, primary_key=True)
+    user_id = sql.Column(sql.Integer, index=True, nullable=False)
+    web_feed = sql.Column(sql.Text, nullable=False)
+    last_check = sql.Column(sql.DateTime, nullable=True, default=None)
+    def __repr__(self):
+        return f"<feed #{self.id!r}>"
+
+class WebhookDB(SQLAlchemyBase):
+    __tablename__ = "webhook"
+    id = sql.Column(sql.Integer, primary_key=True)
+    time = sql.Column(sql.DateTime, nullable=False, default=datetime.datetime.now)
+    data = sql.Column(sql.Text, nullable=False)
+    def __repr__(self):
+        return f"<message #{self.id!r}>"

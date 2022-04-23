@@ -16,7 +16,6 @@ from variables import *
 from webhook import WebhookThread
 from bot_updater import UpdaterThread
 from bot_receiver import ReceiverThread
-from database import SQLAlchemyBase, engine
 
 
 def main():
@@ -35,7 +34,6 @@ def main():
         print("All work has started (´｡• ω •｡`)")
 
     if EXIT_EVENT.wait():
-        NEW_MESSAGES_EVENT.set()
         server.shutdown()
 
     errors = []
@@ -61,6 +59,6 @@ def signal_handler(signal, frame):
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTSTP, signal_handler)
-    if not DB.exists():
-        SQLAlchemyBase.metadata.create_all(engine)  # TODO
+    if not DB_URI.exists():
+        SQLAlchemyBase.metadata.create_all(db)  # TODO
     main()
