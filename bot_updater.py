@@ -4,13 +4,9 @@ from variables import *
 class UpdaterThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.timeout = 100
+        self.bot = telebot.TeleBot(API)
+        self.timeout = FEEDS_UPDATE_TIMEOUT
         self.exception = None
-
-    def join(self):
-        threading.Thread.join(self)
-        if self.exception:
-            raise self.exception
 
     def run(self):
         print("starting an updater")
@@ -26,20 +22,28 @@ class UpdaterThread(threading.Thread):
                 break
 
     def _updater(self):
-        print("check for updates")
+        with SQLSession(db) as session:
+            for entry in session.scalars( sql.select(WebFeedsDB) ):
+                feed = feedparser.parse(entry.web_feed)
+                self._check_the_feed(feed, entry)
 
-    """
-    #  http://feeds.bbci.co.uk/news/rss.xml
-    python_feed = feedparser.parse('https://feeds.feedburner.com/PythonInsider')
-    print(python_feed.feed.title)
-    print(python_feed.feed.link)
-    print()
-    for i in range(3):
-        print(python_feed.entries[i].title)
-        print(python_feed.entries[i].published)
-        soup = BeautifulSoup(python_feed.entries[i].summary, features='html.parser')
-        text = soup.text[:200]
-        print(f"{text.strip()}...")
-        print(python_feed.entries[i].link)
-        print()
-    """
+    def _check_the_feed(self, feed, db_entry):
+        for publication in feed.entries:
+            published = datetime.fromtimestamp(
+                time.mktime(publication.published_parsed)
+            )
+            if db_entry.last_check >= published:
+                break
+            else:
+                soup = BeautifulSoup(publication.summary, features='html.parser')
+                summary = soup.text[:200]
+                text = f"{publication.title}\n" \
+                       f"{published.strftime(TIME_FORMAT)}\n" \
+                       f"{summary.strip()}...\n" \
+                       f"{publication.link}"
+                self.bot.send_message(db_entry.user_id, text)
+
+    def join(self):
+        threading.Thread.join(self)
+        if self.exception:
+            raise self.exception

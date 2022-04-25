@@ -4,8 +4,7 @@
     # https://github.com/eternnoir/pyTelegramBotAPI
 # TODO logging
 # TODO testing
-# TODO see/edit/delete feeds
-# TODO delete buttons?
+# TODO bot blocked
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/
@@ -27,10 +26,9 @@ def main():
     updater = UpdaterThread()
 
     server.start()
-    receiver.start()
-    updater.start()
-
     if READY_TO_WORK.wait():
+        receiver.start()
+        updater.start()
         print("All work has started (´｡• ω •｡`)")
 
     if EXIT_EVENT.wait():
@@ -45,6 +43,7 @@ def main():
 
     print("Go to sleep (´-ω-｀)…zZZ")
     if errors:
+        print("-"*20)
         raise errors[0]
     else:
         sys.exit(0)
@@ -60,5 +59,5 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTSTP, signal_handler)
     if not DB_URI.exists():
-        SQLAlchemyBase.metadata.create_all(db)  # TODO
+        SQLAlchemyBase.metadata.create_all(db)
     main()

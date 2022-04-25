@@ -29,8 +29,8 @@ class WebhookThread(threading.Thread):
         k = """curl --location --request POST \
         'https://api.telegram.org/bot{api}/setWebhook' \
         --header 'Content-Type: application/json' \
-        --data-raw '{{"url": "{url}/kaban-chan"}}' \
-        """.format(api=API, url=tunnel.public_url)
+        --data-raw '{{"url": "{url}"}}' \
+        """.format(api=API, url=tunnel.public_url + WEBHOOK_ENDPOINT)
 
         os.system(k)  # TODO subprocess
         print()
@@ -38,7 +38,7 @@ class WebhookThread(threading.Thread):
     def _flask_app(self):
         app = Flask(__name__)
 
-        @app.route("/kaban-chan", methods=['POST'])
+        @app.route(WEBHOOK_ENDPOINT, methods=['POST'])
         def receiver():
             try:
                 if not request.headers.get('content-type') == 'application/json':

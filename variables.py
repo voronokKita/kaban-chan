@@ -5,8 +5,8 @@ import csv
 import time
 import signal
 import pathlib
-import datetime
 import threading
+from datetime import datetime
 
 import telebot
 
@@ -23,6 +23,9 @@ from sqlalchemy.orm import Session as SQLSession
 
 
 MASTER = "@simple_complexity"
+FEEDS_UPDATE_TIMEOUT = 3600
+
+TIME_FORMAT = 'on %A, %-d day of %B %Y, in %-H:%M'
 
 class DataAlreadyExistsError(Exception): pass
 
@@ -37,13 +40,13 @@ COMMAND_INSERT = f"/{KEY_INSERT_INTO_DB}"
 COMMAND_CANCEL = f"/{KEY_CANCEL}"
 COMMAND_LIST = f"/{KEY_SHOW_USER_FEEDS}"
 COMMAND_DELETE = f"/{KEY_DELETE_FROM_DB}"
-DELETE_PATTERN = re.compile( r'{dell}\s\d+'.format(dell=COMMAND_DELETE) )
+DELETE_PATTERN = re.compile( r'({dell}\s+)(\S+)'.format(dell=COMMAND_DELETE) )
 HELP = """
 {add} - add a new web feed
 {confirm} - start tracking the feed
 {cancel} - go to the beginning
 {list} - show list of your feeds
-{delete} - use it with argument (delete n), it'll delete an n-th feed from your list
+{delete} - use it with argument ( /delete [feed] ), it'll delete a feed from your list
 /help - this message
 /start - restart the bot
 """.format(add=COMMAND_ADD, confirm=COMMAND_INSERT, cancel=COMMAND_CANCEL,
@@ -59,6 +62,8 @@ USERS = {}
 AWAITING_RSS = "AWAITING_FEED"
 POTENTIAL_RSS = "POTENTIAL_FEED"
 
+
+WEBHOOK_ENDPOINT = "/kaban-chan"
 
 API = pathlib.Path.cwd() / "resources" / ".api"
 if API.exists():
@@ -80,14 +85,14 @@ class WebFeedsDB(SQLAlchemyBase):
     id = sql.Column(sql.Integer, primary_key=True)
     user_id = sql.Column(sql.Integer, index=True, nullable=False)
     web_feed = sql.Column(sql.Text, nullable=False)
-    last_check = sql.Column(sql.DateTime, nullable=True, default=None)
+    last_check = sql.Column(sql.DateTime, nullable=False, default=datetime.now)
     def __repr__(self):
         return f"<feed #{self.id!r}>"
 
 class WebhookDB(SQLAlchemyBase):
     __tablename__ = "webhook"
     id = sql.Column(sql.Integer, primary_key=True)
-    time = sql.Column(sql.DateTime, nullable=False, default=datetime.datetime.now)
+    time = sql.Column(sql.DateTime, nullable=False, default=datetime.now)
     data = sql.Column(sql.Text, nullable=False)
     def __repr__(self):
         return f"<message #{self.id!r}>"

@@ -101,7 +101,7 @@ class ReceiverThread(threading.Thread):
             bot.send_message(uid, text)
 
 
-        @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])  #! TODO
+        @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])
         def list_rss(message):
             global USERS
             uid = message.chat.id
@@ -112,21 +112,34 @@ class ReceiverThread(threading.Thread):
 
             elif message.text == COMMAND_LIST:
                 list_of_feeds = ""
-                with open(db) as f:
-                    reader = csv.DictReader(f, DB_HEADERS)
-                    i = 1
-                    for line in reader:
-                        if line["chat_id"] == str(uid):
-                            list_of_feeds += f"{i}. {line['feed']}\n"
-                            i += 1
+                with SQLSession(db) as session:
+                    result = sql.select(WebFeedsDB).where(WebFeedsDB.user_id == uid)
+                    for i, entry in enumerate( session.scalars(result), 1 ):
+                        list_of_feeds += f"{i}. {entry.web_feed}\n"
+                        list_of_feeds += f"\tlast update: {entry.last_check}\n\n"
                 if list_of_feeds:
                     text += list_of_feeds
-                    text += f"\nTo delete an entry use: {COMMAND_DELETE} [number]"
+                    text += f"To delete an entry use: {COMMAND_DELETE} [feed]"
                 else:
                     text += "There is none!"
 
             elif DELETE_PATTERN.fullmatch(message.text.strip()):
-                text = "Make love!"
+                feed = DELETE_PATTERN.findall( message.text.strip() )[0][1]
+                with SQLSession(db) as session:
+                    result = session.scalars(
+                        sql.select(WebFeedsDB)
+                        .where(WebFeedsDB.user_id == uid,
+                               WebFeedsDB.web_feed == feed)
+                    ).first()
+                    if result:
+                        session.delete(result)
+                        session.commit()
+                        text = "Done."
+                    else:
+                        text = "No such web feed found. Check for errors."
+
+            else:
+                text = f"To delete an entry from your list of feeds use: {COMMAND_DELETE} [feed]"
 
             bot.send_message(uid, text)
 
