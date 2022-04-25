@@ -9,6 +9,7 @@ import threading
 from datetime import datetime
 
 import telebot
+from telebot.apihelper import ApiTelegramException
 
 import feedparser
 from bs4 import BeautifulSoup

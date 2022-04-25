@@ -1,10 +1,11 @@
 from variables import *
+import helpers
 
 
 class UpdaterThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.bot = telebot.TeleBot(API)
+        self.bot = None
         self.timeout = FEEDS_UPDATE_TIMEOUT
         self.exception = None
 
@@ -12,6 +13,7 @@ class UpdaterThread(threading.Thread):
         print("starting an updater")
         while True:
             try:
+                self.bot = telebot.TeleBot(API)
                 self._updater()
             except Exception as error:
                 print("error in an updater:", error)
@@ -33,6 +35,7 @@ class UpdaterThread(threading.Thread):
                 time.mktime(publication.published_parsed)
             )
             if db_entry.last_check >= published:
+                print(f"{db_entry.last_check} >= {published}")
                 break
             else:
                 soup = BeautifulSoup(publication.summary, features='html.parser')
@@ -41,7 +44,7 @@ class UpdaterThread(threading.Thread):
                        f"{published.strftime(TIME_FORMAT)}\n" \
                        f"{summary.strip()}...\n" \
                        f"{publication.link}"
-                self.bot.send_message(db_entry.user_id, text)
+                helpers.send_message(self.bot, db_entry.user_id, text)
 
     def join(self):
         threading.Thread.join(self)
