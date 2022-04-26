@@ -39,7 +39,7 @@ def send_message(bot, uid, text, retry=None):
             resend_message(args, timeout=10, retry=retry, delete=True)
 
         elif BOT_TIMEOUT.search(error.description):
-            retry = 3 if retry is None else retry - 1
+            retry = 1 if retry is None else retry - 1
             resend_message(args, timeout=40, retry=retry)
 
         else:
@@ -48,7 +48,7 @@ def send_message(bot, uid, text, retry=None):
 
     except Exception as error:
         args = (bot, uid, text)
-        retry = 3 if retry is None else retry - 1
+        retry = 1 if retry is None else retry - 1
         resend_message(args, timeout=5, retry=retry, error=f"ERROR sending request: {error}")
 
 

@@ -1,4 +1,5 @@
 from variables import *
+import helpers
 
 
 class WebhookThread(threading.Thread):
@@ -18,22 +19,22 @@ class WebhookThread(threading.Thread):
             READY_TO_WORK.set()
             self.server.serve_forever()
         except Exception as error:
-            print("error in a webhook:", error)
+            print("error in a webhook:\n", error)
             self.exception = error
-            helpets.exit_signal()
+            helpers.exit_signal()
 
     def _make_tunnel(self):
         tunnel = ngrok.connect(5000, bind_tls=True)
-        print(tunnel)
-
-        k = """curl --location --request POST \
-        'https://api.telegram.org/bot{api}/setWebhook' \
-        --header 'Content-Type: application/json' \
-        --data-raw '{{"url": "{url}"}}' \
-        """.format(api=API, url=tunnel.public_url + WEBHOOK_ENDPOINT)
-
-        os.system(k)  # TODO subprocess
-        print()
+        url = tunnel.public_url + WEBHOOK_ENDPOINT
+        k = [
+            'curl', '--location', '--request', 'POST',
+            f'https://api.telegram.org/bot{API}/setWebhook',
+            '--header', 'Content-Type: application/json',
+            '--data-raw', f'{{"url": "{url}"}}'
+        ]
+        result = subprocess.check_output(k, stderr=subprocess.STDOUT).decode("utf-8")
+        if not WEBHOOK_WAS_SET.search(result):
+            raise Exception(result)
 
     def _flask_app(self):
         app = Flask(__name__)
@@ -59,8 +60,9 @@ class WebhookThread(threading.Thread):
         return app
 
     def shutdown(self):
-        print("stopping a webhook")
-        self.server.shutdown()
+        if self.server:
+            print("stopping a webhook")
+            self.server.shutdown()
 
     def join(self):
         threading.Thread.join(self)

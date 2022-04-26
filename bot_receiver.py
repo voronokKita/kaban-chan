@@ -28,12 +28,11 @@ class ReceiverThread(threading.Thread):
         except Exception as error:
             print("error in a receiver:", error)
             self.exception = error
-            helpets.exit_signal()
+            helpers.exit_signal()
 
     def _handler(self):
         data = None
         with SQLSession(db) as session:
-            #message = session.scalars( sql.select(WebhookDB) ).first()
             message = session.query(WebhookDB).first()
             if message:
                 data = message.data
@@ -63,7 +62,8 @@ def receiver():
 
         helpers.send_message(bot, message.chat.id, f"Hello, @{message.chat.username}!")
         time.sleep(1)
-        text = f"Use {COMMAND_ADD} command. I will check your web feed from time to time and notify when something new comes up~"
+        text = f"Use {COMMAND_ADD} command. I will check your web feed from time to time " \
+                "and notify when something new comes up~"
         helpers.send_message(bot, message.chat.id, text)
 
 

@@ -18,7 +18,7 @@ class UpdaterThread(threading.Thread):
             except Exception as error:
                 print("error in an updater:", error)
                 self.exception = error
-                helpets.exit_signal()
+                helpers.exit_signal()
             if EXIT_EVENT.wait(timeout=self.timeout):
                 print("stopping an updater")
                 break

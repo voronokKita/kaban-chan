@@ -6,6 +6,7 @@ import time
 import signal
 import pathlib
 import threading
+import subprocess
 from datetime import datetime
 
 import telebot
@@ -65,6 +66,7 @@ POTENTIAL_RSS = "POTENTIAL_FEED"
 
 
 WEBHOOK_ENDPOINT = "/kaban-chan"
+WEBHOOK_WAS_SET = re.compile(r'Webhook was set')
 
 API = pathlib.Path.cwd() / "resources" / ".api"
 if API.exists():
@@ -101,12 +103,12 @@ class WebhookDB(SQLAlchemyBase):
 
 """ Telegram request error codes
 400 - Bad Request: chat not found
-400 - Bad request: user not found - User_id is wrong
+400 - Bad request: user not found
 400 - Bad request: Group migrated to supergroup
 400 - Bad request: Invalid file id
 400 - Bad request: Message not modified
 400 - Bad request: Wrong parameter action in request
-401 - Unauthorized - Bot token is wrong
+401 - Unauthorized
 403 - Forbidden: user is deactivated
 403 - Forbidden: bot was kicked
 403 - Forbidden: bot blocked by user

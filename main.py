@@ -1,10 +1,5 @@
 #!/usr/bin/env python
-# TODO read all:
-    # https://core.telegram.org/bots/api#available-types
-    # https://github.com/eternnoir/pyTelegramBotAPI
 # TODO logging
-# TODO testing
-# TODO bot blocked
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/
@@ -29,7 +24,7 @@ def main():
     updater = UpdaterThread()
 
     server.start()
-    if READY_TO_WORK.wait():
+    if READY_TO_WORK.wait(6):
         receiver.start()
         updater.start()
         print("All work has started (´｡• ω •｡`)")
