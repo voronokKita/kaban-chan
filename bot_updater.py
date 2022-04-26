@@ -18,16 +18,20 @@ class UpdaterThread(threading.Thread):
             except Exception as error:
                 print("error in an updater:", error)
                 self.exception = error
-                EXIT_EVENT.set()
+                helpets.exit_signal()
             if EXIT_EVENT.wait(timeout=self.timeout):
                 print("stopping an updater")
                 break
 
     def _updater(self):
         with SQLSession(db) as session:
-            for entry in session.scalars( sql.select(WebFeedsDB) ):
-                feed = feedparser.parse(entry.web_feed)
-                self._check_the_feed(feed, entry)
+            for db_entry in session.scalars( sql.select(WebFeedsDB) ):
+                feed = feedparser.parse(db_entry.web_feed)
+                self._check_the_feed(feed, db_entry)
+                entry.last_check = datetime.fromtimestamp(
+                    time.mktime(feed.entries[0].published_parsed)
+                )
+                session.commit()
 
     def _check_the_feed(self, feed, db_entry):
         for publication in feed.entries:
@@ -35,14 +39,13 @@ class UpdaterThread(threading.Thread):
                 time.mktime(publication.published_parsed)
             )
             if db_entry.last_check >= published:
-                print(f"{db_entry.last_check} >= {published}")
                 break
             else:
                 soup = BeautifulSoup(publication.summary, features='html.parser')
                 summary = soup.text[:200]
                 text = f"{publication.title}\n" \
-                       f"{published.strftime(TIME_FORMAT)}\n" \
-                       f"{summary.strip()}...\n" \
+                       f"{published.strftime(TIME_FORMAT)}\n\n" \
+                       f"{summary.strip()}...\n\n" \
                        f"{publication.link}"
                 helpers.send_message(self.bot, db_entry.user_id, text)
 

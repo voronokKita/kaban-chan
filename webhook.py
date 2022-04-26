@@ -20,7 +20,7 @@ class WebhookThread(threading.Thread):
         except Exception as error:
             print("error in a webhook:", error)
             self.exception = error
-            EXIT_EVENT.set()
+            helpets.exit_signal()
 
     def _make_tunnel(self):
         tunnel = ngrok.connect(5000, bind_tls=True)

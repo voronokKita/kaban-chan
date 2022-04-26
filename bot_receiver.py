@@ -28,17 +28,18 @@ class ReceiverThread(threading.Thread):
         except Exception as error:
             print("error in a receiver:", error)
             self.exception = error
-            EXIT_EVENT.set()
+            helpets.exit_signal()
 
     def _handler(self):
         data = None
         with SQLSession(db) as session:
-            message = session.scalars( sql.select(WebhookDB) ).first()
+            #message = session.scalars( sql.select(WebhookDB) ).first()
+            message = session.query(WebhookDB).first()
             if message:
                 data = message.data
                 session.delete(message)
                 session.commit()
-                if not session.scalars( sql.select(WebhookDB) ).first():  # TODO
+                if not session.query(WebhookDB).first():
                     NEW_MESSAGES_EVENT.clear()
         update = telebot.types.Update.de_json(data)
         self.bot.process_new_updates([update])

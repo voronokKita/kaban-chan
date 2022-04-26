@@ -1,35 +1,69 @@
 from variables import *
 
 
-def signal_handler(signal, frame):
-    print()
+def exit_signal(signal=None, frame=None):
+    if signal:
+        print()
     EXIT_EVENT.set()
     NEW_MESSAGES_EVENT.set()
 
 
-def send_message(bot, uid, text):  #! TODO
-    # https://core.telegram.org/api/errors
+def send_message(bot, uid, text, retry=None):
+    # TODO logging
+    def resend_message(args, timeout, retry, delete=False, error=False):
+        if retry == 0:
+            if delete:
+                delete_user(args[1])
+            elif error:
+                print(error)
+        else:
+            time.sleep(timeout)
+            send_message(*args, retry=retry)
+
     try:
         bot.send_message(uid, text)
+
     except ApiTelegramException as error:
-        print("AAA", error)
-        print(error.description)
-        print(error.error_code)
-        print(error.result)
-    except Exception:
-        print("BBB")
+        args = (bot, uid, text)
+
+        if WRONG_TOKEN.search(error.description):
+            print("ERROR from telegram: ", error)
+            exit_signal()
+
+        elif UID_NOT_FOUND.search(error.description):
+            retry = 1 if retry is None else retry - 1
+            resend_message(args, timeout=5, retry=retry, delete=True)
+
+        elif BOT_BLOCKED.search(error.description):
+            retry = 3 if retry is None else retry - 1
+            resend_message(args, timeout=10, retry=retry, delete=True)
+
+        elif BOT_TIMEOUT.search(error.description):
+            retry = 3 if retry is None else retry - 1
+            resend_message(args, timeout=40, retry=retry)
+
+        else:
+            retry = 3 if retry is None else retry - 1
+            resend_message(args, timeout=2, retry=retry)
+
+    except Exception as error:
+        args = (bot, uid, text)
+        retry = 3 if retry is None else retry - 1
+        resend_message(args, timeout=5, retry=retry, error=f"ERROR sending request: {error}")
 
 
-def delete_user():
-    pass
+def delete_user(uid):
+    with SQLSession(db) as session:
+        user = sql.select(WebFeedsDB).where(WebFeedsDB.user_id == uid)
+        if user:
+            [session.delete(entry) for entry in session.scalars(user)]
+            session.commit()
 
 
 def check_out_rss(feed, uid):
     with SQLSession(db) as session:
-        result = session.scalars(
-            sql.select(WebFeedsDB)
-            .where(WebFeedsDB.user_id == uid,
-                    WebFeedsDB.web_feed == feed)
+        result = session.query(WebFeedsDB).filter(
+            WebFeedsDB.user_id == uid, WebFeedsDB.web_feed == feed
         ).first()
         if result:
             raise DataAlreadyExistsError()
@@ -61,10 +95,8 @@ def list_rss(uid):
 
 def delete_rss(feed, uid):
     with SQLSession(db) as session:
-        result = session.scalars(
-            sql.select(WebFeedsDB)
-            .where(WebFeedsDB.user_id == uid,
-                    WebFeedsDB.web_feed == feed)
+        result = session.query(WebFeedsDB).filter(
+            WebFeedsDB.user_id == uid, WebFeedsDB.web_feed == feed
         ).first()
         if result:
             session.delete(result)

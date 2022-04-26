@@ -97,3 +97,24 @@ class WebhookDB(SQLAlchemyBase):
     data = sql.Column(sql.Text, nullable=False)
     def __repr__(self):
         return f"<message #{self.id!r}>"
+
+
+""" Telegram request error codes
+400 - Bad Request: chat not found
+400 - Bad request: user not found - User_id is wrong
+400 - Bad request: Group migrated to supergroup
+400 - Bad request: Invalid file id
+400 - Bad request: Message not modified
+400 - Bad request: Wrong parameter action in request
+401 - Unauthorized - Bot token is wrong
+403 - Forbidden: user is deactivated
+403 - Forbidden: bot was kicked
+403 - Forbidden: bot blocked by user
+403 - Forbidden: bot can't send messages to bots
+409 - Conflict: Terminated by other long poll
+429 - Too many requests
+"""
+WRONG_TOKEN = re.compile(r'Unauthorized')
+UID_NOT_FOUND = re.compile(r'not found')
+BOT_BLOCKED = re.compile(r'kicked|blocked|deactivated')
+BOT_TIMEOUT = re.compile(r'Too many requests')
