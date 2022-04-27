@@ -1,7 +1,6 @@
 import os
 import re
 import sys
-import csv
 import time
 import signal
 import pathlib
@@ -26,7 +25,6 @@ from sqlalchemy.orm import Session as SQLSession
 
 MASTER = "@simple_complexity"
 FEEDS_UPDATE_TIMEOUT = 3600
-
 TIME_FORMAT = 'on %A, %-d day of %B %Y, in %-H:%M'
 
 class DataAlreadyExistsError(Exception): pass
@@ -74,7 +72,7 @@ if API.exists():
         API = f.read().strip()
 else:
     API = None
-    print("Enter the bot API key: ", end="")
+    print("Enter the bot's API key: ", end="")
     while not API:
         API = input().strip()
 
@@ -90,15 +88,14 @@ class WebFeedsDB(SQLAlchemyBase):
     web_feed = sql.Column(sql.Text, nullable=False)
     last_check = sql.Column(sql.DateTime, nullable=False, default=datetime.now)
     def __repr__(self):
-        return f"<feed #{self.id!r}>"
+        return f"<feed entry #{self.id!r}>"
 
 class WebhookDB(SQLAlchemyBase):
     __tablename__ = "webhook"
     id = sql.Column(sql.Integer, primary_key=True)
-    time = sql.Column(sql.DateTime, nullable=False, default=datetime.now)
     data = sql.Column(sql.Text, nullable=False)
     def __repr__(self):
-        return f"<message #{self.id!r}>"
+        return f"<web message #{self.id!r}>"
 
 
 """ Telegram request error codes

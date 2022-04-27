@@ -10,8 +10,10 @@ class WebhookThread(threading.Thread):
         #self.context.push()
         self.exception = None
 
+    def __repr__(self):
+        return "webhook thread"
+
     def run(self):
-        print("starting a webhook")
         try:
             self._make_tunnel()
             app = self._flask_app()
@@ -19,7 +21,6 @@ class WebhookThread(threading.Thread):
             READY_TO_WORK.set()
             self.server.serve_forever()
         except Exception as error:
-            print("error in a webhook:\n", error)
             self.exception = error
             helpers.exit_signal()
 
@@ -61,7 +62,6 @@ class WebhookThread(threading.Thread):
 
     def shutdown(self):
         if self.server:
-            print("stopping a webhook")
             self.server.shutdown()
 
     def join(self):

@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+# TODO option to disable links
+# TODO possability that a web feed is offline
+# TODO load the first feed entry after adding a feed
 # TODO logging
+# TODO comments
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/
@@ -23,10 +27,13 @@ def main():
     receiver = ReceiverThread()
     updater = UpdaterThread()
 
+    print("starting a webhook")
     server.start()
-    if READY_TO_WORK.wait(6):
+    if READY_TO_WORK.wait(10):
+        print("starting receiver & updater")
         receiver.start()
         updater.start()
+        time.sleep(1)
         print("All work has started (´｡• ω •｡`)")
 
     if EXIT_EVENT.wait():
@@ -35,8 +42,10 @@ def main():
     errors = []
     for thread in [server, receiver, updater]:
         try:
+            print(f"stopping a {thread}")
             thread.join()
         except Exception as error:
+            print(f"error in a {thread}:\n", error)
             errors.append(error)
 
     print("Go to sleep (´-ω-｀)…zZZ")

@@ -8,56 +8,63 @@ def exit_signal(signal=None, frame=None):
     NEW_MESSAGES_EVENT.set()
 
 
-def send_message(bot, uid, text, retry=None):
-    # TODO logging
-    def resend_message(args, timeout, retry, delete=False, error=False):
+def send_message(bot, uid, text):
+
+    def resend_message(retry, sleep, delete=False, error=None):
         if retry == 0:
             if delete:
                 delete_user(args[1])
             elif error:
                 print(error)
+            return False
         else:
-            time.sleep(timeout)
-            send_message(*args, retry=retry)
+            time.sleep(sleep)
+            return True
 
-    try:
-        bot.send_message(uid, text)
+    while True:
+        retry = None
+        try:
+            bot.send_message(uid, text)
 
-    except ApiTelegramException as error:
-        args = (bot, uid, text)
+        except ApiTelegramException as error:
+            if WRONG_TOKEN.search(error.description):
+                print("ERROR from telegram: ", error)
+                exit_signal()
 
-        if WRONG_TOKEN.search(error.description):
-            print("ERROR from telegram: ", error)
-            exit_signal()
+            elif UID_NOT_FOUND.search(error.description):
+                retry = 1 if retry is None else retry - 1
+                if resend_message(retry, sleep=5, delete=True):
+                    continue
 
-        elif UID_NOT_FOUND.search(error.description):
+            elif BOT_BLOCKED.search(error.description):
+                retry = 3 if retry is None else retry - 1
+                if resend_message(retry, sleep=10, delete=True):
+                    print("try")
+                    continue
+
+            elif BOT_TIMEOUT.search(error.description):
+                retry = 1 if retry is None else retry - 1
+                if resend_message(retry, sleep=10):
+                    continue
+
+            else:
+                retry = 3 if retry is None else retry - 1
+                if resend_message(retry, sleep=2):
+                    continue
+
+        except Exception as error:
             retry = 1 if retry is None else retry - 1
-            resend_message(args, timeout=5, retry=retry, delete=True)
+            if resend_message(retry, 5, error=f"ERROR sending request: {error}"):
+                continue
 
-        elif BOT_BLOCKED.search(error.description):
-            retry = 3 if retry is None else retry - 1
-            resend_message(args, timeout=10, retry=retry, delete=True)
-
-        elif BOT_TIMEOUT.search(error.description):
-            retry = 1 if retry is None else retry - 1
-            resend_message(args, timeout=40, retry=retry)
-
-        else:
-            retry = 3 if retry is None else retry - 1
-            resend_message(args, timeout=2, retry=retry)
-
-    except Exception as error:
-        args = (bot, uid, text)
-        retry = 1 if retry is None else retry - 1
-        resend_message(args, timeout=5, retry=retry, error=f"ERROR sending request: {error}")
+        break
 
 
 def delete_user(uid):
     with SQLSession(db) as session:
-        user = sql.select(WebFeedsDB).where(WebFeedsDB.user_id == uid)
-        if user:
-            [session.delete(entry) for entry in session.scalars(user)]
-            session.commit()
+        result = session.query(WebFeedsDB).filter(WebFeedsDB.user_id == uid)
+        for entry in session.scalars(result):
+            delete_rss(entry.web_feed, uid)
 
 
 def check_out_rss(feed, uid):
@@ -80,7 +87,7 @@ def add_new_rss(feed, uid):
 def list_rss(uid):
     list_of_feeds = ""
     with SQLSession(db) as session:
-        result = sql.select(WebFeedsDB).where(WebFeedsDB.user_id == uid)
+        result = session.query(WebFeedsDB).filter(WebFeedsDB.user_id == uid)
         for i, entry in enumerate( session.scalars(result), 1 ):
             list_of_feeds += f"{i}. {entry.web_feed}\n"
             date = entry.last_check.strftime(TIME_FORMAT)

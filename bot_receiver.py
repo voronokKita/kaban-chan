@@ -8,25 +8,25 @@ class ReceiverThread(threading.Thread):
         self.bot = None
         self.exception = None
 
+    def __repr__(self):
+        return "receiver thread"
+
     def join(self):
         threading.Thread.join(self)
         if self.exception:
             raise self.exception
 
     def run(self):
-        print("starting a receiver")
         try:
             self.bot = receiver()
             while True:
                 if NEW_MESSAGES_EVENT.wait():
-                    if not EXIT_EVENT.is_set():
-                        self._handler()
-                    else:
-                        print("stopping a receiver")
+                    if EXIT_EVENT.is_set():
                         self._receiver_stop()
                         break
+                    else:
+                        self._handler()
         except Exception as error:
-            print("error in a receiver:", error)
             self.exception = error
             helpers.exit_signal()
 
@@ -36,7 +36,7 @@ class ReceiverThread(threading.Thread):
             message = session.query(WebhookDB).first()
             if message:
                 data = message.data
-                session.delete(message)
+                session.query(WebhookDB).where(WebhookDB.id == message.id).delete()
                 session.commit()
                 if not session.query(WebhookDB).first():
                     NEW_MESSAGES_EVENT.clear()
@@ -55,16 +55,17 @@ def receiver():
 
     @bot.message_handler(commands=['start'])
     def hello(message):
-        global USERS
         uid = message.chat.id
+        global USERS
         if USERS.get(uid):
             USERS.pop(uid)
+        helpers.delete_user(uid)
 
-        helpers.send_message(bot, message.chat.id, f"Hello, @{message.chat.username}!")
+        helpers.send_message(bot, uid, f"Hello, @{message.chat.username}!")
         time.sleep(1)
         text = f"Use {COMMAND_ADD} command. I will check your web feed from time to time " \
                 "and notify when something new comes up~"
-        helpers.send_message(bot, message.chat.id, text)
+        helpers.send_message(bot, uid, text)
 
 
     @bot.message_handler(commands=['help'])
@@ -73,9 +74,9 @@ def receiver():
 
 
     @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
-    def add_rss(message):
-        global USERS
+    def add_rss(message, check_out=False):
         uid = message.chat.id
+        global USERS
         USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
         text = ""
 
@@ -87,10 +88,23 @@ def receiver():
             text = "Cancelled~"
             USERS.pop(uid)
 
+        elif check_out:
+            rss = message.text.strip()
+            try:
+                feedparser.parse(rss).feed.title
+                helpers.check_out_rss(rss, uid)
+            except DataAlreadyExistsError:
+                text = "I already watch this feed for you!"
+            except:
+                text = "Can't read the feed. Check for errors or try again later."
+            else:
+                text = f"All is fine — I managed to read the feed! Use the {COMMAND_INSERT} command to complete."
+                USERS[uid][POTENTIAL_RSS] = rss
+
         elif USERS[uid][AWAITING_RSS] and USERS[uid][POTENTIAL_RSS] and message.text == COMMAND_INSERT:
             helpers.add_new_rss(USERS[uid][POTENTIAL_RSS], uid)
             text = "New web feed added!"
-            USERS.pop(uid)  #! TODO load first
+            USERS.pop(uid)
 
         else:
             text = f"You can use {COMMAND_CANCEL} to go back."
@@ -100,12 +114,12 @@ def receiver():
 
     @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])
     def list_rss(message):
-        global USERS
         uid = message.chat.id
         text = ""
+        global USERS
 
-        if USERS.get(uid) and USERS[uid][AWAITING_RSS]:
-            text = f"You can use {COMMAND_CANCEL} to go back."
+        if USERS.get(uid):
+            add_rss(message)
 
         elif message.text == COMMAND_LIST:
             text = helpers.list_rss(uid)
@@ -122,25 +136,12 @@ def receiver():
 
     @bot.message_handler(content_types=['text'])
     def get_text_data(message):
-        global USERS
         uid = message.chat.id
-        text = ""
-
+        global USERS
         if USERS.get(uid) and USERS[uid][AWAITING_RSS]:
-            rss = message.text.strip()
-            try:
-                feedparser.parse(rss).feed.title
-                helpers.check_out_rss(rss, uid)
-            except DataAlreadyExistsError:
-                text = "I already watch this feed for you!"
-            except:
-                text = "Can't read the feed. Check for errors or try again later."
-            else:
-                text = f"All is fine — I managed to read the feed! Use the {COMMAND_INSERT} command to complete."
-                USERS[uid][POTENTIAL_RSS] = rss
-
-        if text:
-            helpers.send_message(bot, uid, text)
+            add_rss(message, check_out=True)
+        else:
+            help(message)
 
 
     return bot
