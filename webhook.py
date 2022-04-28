@@ -42,20 +42,24 @@ class WebhookThread(threading.Thread):
 
         @app.route(WEBHOOK_ENDPOINT, methods=['POST'])
         def receiver():
+            data = None
             try:
                 if not request.headers.get('content-type') == 'application/json':
-                    raise
-                data = request.get_data().decode('utf-8')
-                telebot.types.Update.de_json(data)
+                    raise WrongWebhookRequestError
+                try:
+                    data = request.get_data().decode('utf-8')
+                    telebot.types.Update.de_json(data)
+                except:
+                    raise WrongWebhookRequestError
+            except WrongWebhookRequestError:
+                log.exception(f'Alien Invasion 👽 {request.get_data().decode("utf-8")}')
+                return "Unidentified Request Object", 400
+            else:
                 with SQLSession(db) as session:
                     new_message = WebhookDB(data=data)
                     session.add(new_message)
                     session.commit()
                 NEW_MESSAGES_EVENT.set()
-            except:
-                print("-"*10, "Alien Invasion", request.get_data().decode('utf-8'), "-"*10, sep="\n")
-                return "", 400
-            else:
                 return "", 200
 
         return app

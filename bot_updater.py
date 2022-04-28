@@ -27,13 +27,14 @@ class UpdaterThread(threading.Thread):
             for db_entry in session.scalars( session.query(WebFeedsDB) ):
                 try:
                     feed = feedparser.parse(db_entry.web_feed)
-                    self._check_the_feed(feed, db_entry.last_check, db_entry.user_id)
-                    entry.last_check = datetime.fromtimestamp(
-                        time.mktime(feed.entries[0].published_parsed)
-                    )
-                    session.commit()
-                except:
-                    pass
+                    uid = db_entry.user_id
+                    last_check = db_entry.last_check
+                    top_publication_date = self._check_the_feed(feed, last_check, uid)
+                    if last_check < top_publication_date:
+                        db_entry.last_check = published
+                        session.commit()
+                except Exception as error:
+                    log.warning(f'feedparser fail - {error}')
 
     def _check_the_feed(self, feed, last_check, uid):
         for publication in feed.entries:
@@ -50,6 +51,11 @@ class UpdaterThread(threading.Thread):
                        f"{summary.strip()}...\n\n" \
                        f"{publication.link}"
                 helpers.send_message(self.bot, uid, text)
+
+        top_publication_date = datetime.fromtimestamp(
+            time.mktime(feed.entries[0].published_parsed)
+        )
+        return top_publication_date
 
     def join(self):
         threading.Thread.join(self)

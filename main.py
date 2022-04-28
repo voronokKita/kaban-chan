@@ -2,7 +2,6 @@
 # TODO option to disable links
 # TODO possability that a web feed is offline
 # TODO load the first feed entry after adding a feed
-# TODO logging
 # TODO comments
 """ Thanks to
 https://habr.com/ru/post/350648/
@@ -34,26 +33,25 @@ def main():
         receiver.start()
         updater.start()
         time.sleep(1)
+        info(">>> up & running >>>")
         print("All work has started (´｡• ω •｡`)")
 
     if EXIT_EVENT.wait():
         server.shutdown()
 
-    errors = []
+    errors = False
     for thread in [server, receiver, updater]:
         try:
-            print(f"stopping a {thread}")
             thread.join()
+            print(f"stopping a {thread}")
         except Exception as error:
-            print(f"error in a {thread}:\n", error)
-            errors.append(error)
+            print(f"error in a {thread}")
+            log.exception(thread)
+            errors = True
 
     print("Go to sleep (´-ω-｀)…zZZ")
-    if errors:
-        print("-"*20)
-        raise errors[0]
-    else:
-        sys.exit(0)
+    info("xxx   stopping   xxx\n")
+    sys.exit(1) if errors else sys.exit(0)
 
 
 if __name__ == '__main__':

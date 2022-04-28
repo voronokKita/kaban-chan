@@ -10,12 +10,10 @@ def exit_signal(signal=None, frame=None):
 
 def send_message(bot, uid, text):
 
-    def resend_message(retry, sleep, delete=False, error=None):
+    def resend_message(retry, sleep, delete=False):
         if retry == 0:
             if delete:
                 delete_user(args[1])
-            elif error:
-                print(error)
             return False
         else:
             time.sleep(sleep)
@@ -28,35 +26,40 @@ def send_message(bot, uid, text):
 
         except ApiTelegramException as error:
             if WRONG_TOKEN.search(error.description):
-                print("ERROR from telegram: ", error)
+                log.critical(f'wrong telegram token - {error}')
                 exit_signal()
 
             elif UID_NOT_FOUND.search(error.description):
                 retry = 1 if retry is None else retry - 1
                 if resend_message(retry, sleep=5, delete=True):
                     continue
+                log.warning('user/chat not found == uid deleted')
 
             elif BOT_BLOCKED.search(error.description):
                 retry = 3 if retry is None else retry - 1
                 if resend_message(retry, sleep=10, delete=True):
-                    print("try")
                     continue
+                log.warning('bot blocked == uid deleted')
 
             elif BOT_TIMEOUT.search(error.description):
                 retry = 1 if retry is None else retry - 1
                 if resend_message(retry, sleep=10):
                     continue
+                log.warning('telgram timeout')
 
             else:
                 retry = 3 if retry is None else retry - 1
                 if resend_message(retry, sleep=2):
                     continue
+                log.exception('undefined telegram problem')
 
         except Exception as error:
             retry = 1 if retry is None else retry - 1
-            if resend_message(retry, 5, error=f"ERROR sending request: {error}"):
+            if resend_message(retry, sleep=5):
                 continue
+            log.exception('request')
 
+        time.sleep(0.1)
         break
 
 
@@ -81,7 +84,7 @@ def add_new_rss(feed, uid):
         new_entry = WebFeedsDB(user_id=uid, web_feed=feed)
         session.add(new_entry)
         session.commit()
-    print("db: a new entry")
+    info('db - a new entry')
 
 
 def list_rss(uid):
@@ -94,7 +97,7 @@ def list_rss(uid):
             list_of_feeds += f"\tlast update: {date}\n\n"
 
     if not list_of_feeds:
-        return "There is none!"
+        return ""
     else:
         list_of_feeds += f"To delete an entry use: {COMMAND_DELETE} [feed]"
         return list_of_feeds
@@ -108,6 +111,7 @@ def delete_rss(feed, uid):
         if result:
             session.delete(result)
             session.commit()
-            return "Done."
+            info('db - entry removed')
+            return True
         else:
-            return "No such web feed found. Check for errors."
+            return False

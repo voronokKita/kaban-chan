@@ -45,8 +45,7 @@ class ReceiverThread(threading.Thread):
 
     def _receiver_stop(self):
         for uid in USERS:
-            text = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
-            helpers.send_message(self.bot, uid, text)
+            helpers.send_message(self.bot, uid, EXIT_NOTIFICATION)
 
 
 def receiver():
@@ -70,6 +69,8 @@ def receiver():
 
     @bot.message_handler(commands=['help'])
     def help(message):
+        if USERS.get(uid):
+            add_rss(message)
         helpers.send_message(bot, message.chat.id, HELP)
 
 
@@ -78,7 +79,6 @@ def receiver():
         uid = message.chat.id
         global USERS
         USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
-        text = ""
 
         if not USERS[uid][AWAITING_RSS] and message.text == COMMAND_ADD:
             text = "Send me a URI of your web feed. I'll check it out."
@@ -106,6 +106,9 @@ def receiver():
             text = "New web feed added!"
             USERS.pop(uid)
 
+        elif message.text == COMMAND_INSERT:
+            text = f"Use {COMMAND_ADD} command."
+
         else:
             text = f"You can use {COMMAND_CANCEL} to go back."
 
@@ -115,7 +118,6 @@ def receiver():
     @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])
     def list_rss(message):
         uid = message.chat.id
-        text = ""
         global USERS
 
         if USERS.get(uid):
@@ -123,13 +125,21 @@ def receiver():
 
         elif message.text == COMMAND_LIST:
             text = helpers.list_rss(uid)
+            if not text:
+                text = "There is none!"
+
+        elif message.text == COMMAND_DELETE:
+            text = f"To delete an entry from your list of feeds use: {COMMAND_DELETE} [feed]"
 
         elif DELETE_PATTERN.fullmatch(message.text.strip()):
             feed = DELETE_PATTERN.findall( message.text.strip() )[0][1]
-            text = helpers.delete_rss(feed, uid)
+            if helpers.delete_rss(feed, uid):
+                text = "Done."
+            else:
+                text = "No such web feed found. Check for errors."
 
         else:
-            text = f"To delete an entry from your list of feeds use: {COMMAND_DELETE} [feed]"
+            help(message)
 
         helpers.send_message(bot, uid, text)
 

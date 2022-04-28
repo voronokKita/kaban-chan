@@ -4,6 +4,7 @@ import sys
 import time
 import signal
 import pathlib
+import logging
 import threading
 import subprocess
 from datetime import datetime
@@ -24,10 +25,12 @@ from sqlalchemy.orm import Session as SQLSession
 
 
 MASTER = "@simple_complexity"
+
 FEEDS_UPDATE_TIMEOUT = 3600
 TIME_FORMAT = 'on %A, %-d day of %B %Y, in %-H:%M'
 
 class DataAlreadyExistsError(Exception): pass
+class WrongWebhookRequestError(Exception): pass
 
 
 KEY_ADD_NEW_FEED = "add"
@@ -49,8 +52,10 @@ HELP = """
 {delete} - use it with argument ( /delete [feed] ), it'll delete a feed from your list
 /help - this message
 /start - restart the bot
+master: {master}
 """.format(add=COMMAND_ADD, confirm=COMMAND_INSERT, cancel=COMMAND_CANCEL,
-           list=COMMAND_LIST, delete=COMMAND_DELETE)
+           list=COMMAND_LIST, delete=COMMAND_DELETE, master=MASTER)
+EXIT_NOTIFICATION = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 
 
 READY_TO_WORK = threading.Event()
@@ -117,3 +122,18 @@ WRONG_TOKEN = re.compile(r'Unauthorized')
 UID_NOT_FOUND = re.compile(r'not found')
 BOT_BLOCKED = re.compile(r'kicked|blocked|deactivated')
 BOT_TIMEOUT = re.compile(r'Too many requests')
+
+
+LOG = pathlib.Path.cwd() / "resources" / "feedback.log"
+LOG_FORMAT = '- %(asctime)s %(levelname)s: %(message)s'
+LOG_DATEFMT = '%Y-%m-%d %H:%M'
+log = logging.getLogger(__name__)
+log.setLevel('WARNING')
+log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
+log_handler.setFormatter( logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFMT) )
+log.addHandler(log_handler)
+
+def info(s):
+    log.setLevel('INFO')
+    log.info(s)
+    log.setLevel('WARNING')

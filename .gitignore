@@ -2,8 +2,8 @@
 
 resources/
 .api
-database.csv
 database.db
+feedback.log
 messages_socket
 Pipfile.lock
 
