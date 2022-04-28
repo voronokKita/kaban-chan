@@ -39,9 +39,19 @@ class WebhookThread(threading.Thread):
 
     def _flask_app(self):
         app = Flask(__name__)
+        app.config.update(
+            ENV = 'production',
+            DEBUG = False,
+            TESTING = False,
+            PROPAGATE_EXCEPTIONS = True,
+            PRESERVE_CONTEXT_ON_EXCEPTION = False,
+            SECRET_KEY = secrets.token_hex(),
+        )
 
         @app.route(WEBHOOK_ENDPOINT, methods=['POST'])
         def receiver():
+            """ Checks requests and passes them into the web db.
+                The db serves as a reliable request queue. """
             data = None
             try:
                 if not request.headers.get('content-type') == 'application/json':

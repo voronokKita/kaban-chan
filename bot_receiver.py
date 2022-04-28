@@ -31,6 +31,7 @@ class ReceiverThread(threading.Thread):
             helpers.exit_signal()
 
     def _handler(self):
+        """ Loads messages from the web db and passes them to a telebot processor. """
         data = None
         with SQLSession(db) as session:
             message = session.query(WebhookDB).first()
@@ -49,11 +50,13 @@ class ReceiverThread(threading.Thread):
 
 
 def receiver():
+    """ Main messages processor. """
     bot = telebot.TeleBot(API)
 
 
     @bot.message_handler(commands=['start'])
     def hello(message):
+        """ Will also delete any old data in order to work as a restart function. """
         uid = message.chat.id
         global USERS
         if USERS.get(uid):
@@ -76,6 +79,7 @@ def receiver():
 
     @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
     def add_rss(message, check_out=False):
+        """ Handles the insertion of new entries into the feeds db. """
         uid = message.chat.id
         global USERS
         USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
@@ -117,6 +121,7 @@ def receiver():
 
     @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])
     def list_rss(message):
+        """ Sends the list of feeds associated with the id. Handles the deletion of feeds. """
         uid = message.chat.id
         global USERS
 
@@ -146,6 +151,7 @@ def receiver():
 
     @bot.message_handler(content_types=['text'])
     def get_text_data(message):
+        """ Process text messages. """
         uid = message.chat.id
         global USERS
         if USERS.get(uid) and USERS[uid][AWAITING_RSS]:

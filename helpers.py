@@ -2,6 +2,7 @@ from variables import *
 
 
 def exit_signal(signal=None, frame=None):
+    """ Gentle exiting. """
     if signal:
         print()
     EXIT_EVENT.set()
@@ -9,7 +10,7 @@ def exit_signal(signal=None, frame=None):
 
 
 def send_message(bot, uid, text):
-
+    """ Handles errors in requests to Telegram. """
     def resend_message(retry, sleep, delete=False):
         if retry == 0:
             if delete:
@@ -64,6 +65,7 @@ def send_message(bot, uid, text):
 
 
 def delete_user(uid):
+    """ Takes all the feeds associated with some id and requests deletion. """
     with SQLSession(db) as session:
         result = session.query(WebFeedsDB).filter(WebFeedsDB.user_id == uid)
         for entry in session.scalars(result):
@@ -71,6 +73,7 @@ def delete_user(uid):
 
 
 def check_out_rss(feed, uid):
+    """ Raises an error if this id has already added this feed. """
     with SQLSession(db) as session:
         result = session.query(WebFeedsDB).filter(
             WebFeedsDB.user_id == uid, WebFeedsDB.web_feed == feed
@@ -80,6 +83,7 @@ def check_out_rss(feed, uid):
 
 
 def add_new_rss(feed, uid):
+    """ Inserts a new entry into the feeds db. """
     with SQLSession(db) as session:
         new_entry = WebFeedsDB(user_id=uid, web_feed=feed)
         session.add(new_entry)
@@ -88,6 +92,7 @@ def add_new_rss(feed, uid):
 
 
 def list_rss(uid):
+    """ Loads & returns list of feeds associated with some id. """
     list_of_feeds = ""
     with SQLSession(db) as session:
         result = session.query(WebFeedsDB).filter(WebFeedsDB.user_id == uid)
@@ -104,6 +109,7 @@ def list_rss(uid):
 
 
 def delete_rss(feed, uid):
+    """ Delete some entry from the feeds db. """
     with SQLSession(db) as session:
         result = session.query(WebFeedsDB).filter(
             WebFeedsDB.user_id == uid, WebFeedsDB.web_feed == feed

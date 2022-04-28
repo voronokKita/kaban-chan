@@ -50,7 +50,7 @@ def main():
             errors = True
 
     print("Go to sleep (´-ω-｀)…zZZ")
-    info("xxx   stopping   xxx\n")
+    info("---   stopping   ---\n")
     sys.exit(1) if errors else sys.exit(0)
 
 

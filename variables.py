@@ -3,6 +3,7 @@ import re
 import sys
 import time
 import signal
+import secrets
 import pathlib
 import logging
 import threading
@@ -44,6 +45,7 @@ COMMAND_CANCEL = f"/{KEY_CANCEL}"
 COMMAND_LIST = f"/{KEY_SHOW_USER_FEEDS}"
 COMMAND_DELETE = f"/{KEY_DELETE_FROM_DB}"
 DELETE_PATTERN = re.compile( r'({dell}\s+)(\S+)'.format(dell=COMMAND_DELETE) )
+
 HELP = """
 {add} - add a new web feed
 {confirm} - start tracking the feed
@@ -55,6 +57,7 @@ HELP = """
 master: {master}
 """.format(add=COMMAND_ADD, confirm=COMMAND_INSERT, cancel=COMMAND_CANCEL,
            list=COMMAND_LIST, delete=COMMAND_DELETE, master=MASTER)
+
 EXIT_NOTIFICATION = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 
 
@@ -76,10 +79,7 @@ if API.exists():
     with open(API) as f:
         API = f.read().strip()
 else:
-    API = None
-    print("Enter the bot's API key: ", end="")
-    while not API:
-        API = input().strip()
+    API = input("Enter the bot's API key: ").strip()
 
 
 DB_URI = pathlib.Path.cwd() / "resources" / "database.db"
@@ -127,6 +127,13 @@ BOT_TIMEOUT = re.compile(r'Too many requests')
 LOG = pathlib.Path.cwd() / "resources" / "feedback.log"
 LOG_FORMAT = '- %(asctime)s %(levelname)s: %(message)s'
 LOG_DATEFMT = '%Y-%m-%d %H:%M'
+
+werkzeug_log = logging.getLogger('werkzeug')
+werkzeug_log.setLevel('ERROR')
+werkzeug_log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
+werkzeug_log_handler.setFormatter( logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFMT) )
+werkzeug_log.addHandler(werkzeug_log_handler)
+
 log = logging.getLogger(__name__)
 log.setLevel('WARNING')
 log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
