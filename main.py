@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# TODO option to disable links
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/

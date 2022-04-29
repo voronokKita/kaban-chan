@@ -33,11 +33,12 @@ class UpdaterThread(threading.Thread):
                         raise FeedLoadError(feed)
                     uid = db_entry.user_id
                     last_check = db_entry.last_check
+                    style_args = (db_entry.summary, db_entry.date, db_entry.link)
 
-                    top_post_date = self._check_the_feed(feed, last_check, uid)
+                    top_post_date = self._check_the_feed(feed, last_check, uid, style_args)
 
                     if last_check < top_post_date:
-                        db_entry.last_check = published
+                        db_entry.last_check = top_post_date
                         session.commit()
 
                 except FeedLoadError as feed:
@@ -49,7 +50,7 @@ class UpdaterThread(threading.Thread):
                 except Exception as error:
                     log.warning(f'feedparser fail - {error}')
 
-    def _check_the_feed(self, feed, last_check, uid):
+    def _check_the_feed(self, feed, last_check, uid, style_args):
         """ Iterates through all posts in the feed until it reaches the previously loaded one.
             Returns the publication date of the newest post. """
         for post in feed.entries:
@@ -59,7 +60,7 @@ class UpdaterThread(threading.Thread):
             if last_check >= published:
                 break
             else:
-                helpers.send_a_post(post, published, self.bot, uid)
+                helpers.send_a_post(self.bot, uid, post, published, *style_args)
 
         top_post_date = datetime.fromtimestamp(
             time.mktime(feed.entries[0].published_parsed)

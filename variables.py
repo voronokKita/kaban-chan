@@ -28,9 +28,9 @@ from sqlalchemy.orm import Session as SQLSession
 MASTER = "@simple_complexity"
 
 FEEDS_UPDATE_TIMEOUT = 3600
-TIME_FORMAT = 'on %A, %-d day of %B %Y, in %-H:%M'
+TIME_FORMAT = 'on %A, in %-d day of %B %Y, at %-H:%M %z'
 
-class DataAlreadyExistsError(Exception): pass
+class DataAlreadyExists(Exception): pass
 class WrongWebhookRequestError(Exception): pass
 class FeedLoadError(Exception): pass
 
@@ -40,24 +40,40 @@ KEY_INSERT_INTO_DB = "confirm"
 KEY_CANCEL = "cancel"
 KEY_SHOW_USER_FEEDS = "list"
 KEY_DELETE_FROM_DB = "delete"
+KEY_SWITCH_SUMMARY = "summary"
+KEY_SWITCH_DATE = "date"
+KEY_SWITCH_LINK = "link"
+
 COMMAND_ADD = f"/{KEY_ADD_NEW_FEED}"
 COMMAND_INSERT = f"/{KEY_INSERT_INTO_DB}"
 COMMAND_CANCEL = f"/{KEY_CANCEL}"
 COMMAND_LIST = f"/{KEY_SHOW_USER_FEEDS}"
 COMMAND_DELETE = f"/{KEY_DELETE_FROM_DB}"
+COMMAND_SW_SUMMARY = f"/{KEY_SWITCH_SUMMARY}"
+COMMAND_SW_DATE = f"/{KEY_SWITCH_DATE}"
+COMMAND_SW_LINK = f"/{KEY_SWITCH_LINK}"
+
 DELETE_PATTERN = re.compile( r'({dell}\s+)(\S+)'.format(dell=COMMAND_DELETE) )
+SUMMARY_PATTERN = re.compile( r'({summary}\s+)(\S+)'.format(summary=COMMAND_SW_SUMMARY) )
+DATE_PATTERN = re.compile( r'({date}\s+)(\S+)'.format(date=COMMAND_SW_DATE) )
+LINK_PATTERN = re.compile( r'({link}\s+)(\S+)'.format(link=COMMAND_SW_LINK) )
+COMMAND_PATTERN = re.compile( r'(/\w+\s+)(\S+)' )
 
 HELP = """
 {add} - add a new web feed
 {confirm} - start tracking the feed
 {cancel} - go to the beginning
 {list} - show list of your feeds
-{delete} - use it with argument ( /delete [feed] ), it'll delete a feed from your list
+{delete} - use it with argument ( {delete} [feed] ), it'll delete a feed from your list
+{date} - ( {date} [feed] ), switch display of publication date in all posts from some feed
+{summary} - ( {summary} [feed] ), switch display of summary
+{link} - ( {link} [feed] ), switch display of the URL of the post
 /help - this message
 /start - restart the bot
 master: {master}
 """.format(add=COMMAND_ADD, confirm=COMMAND_INSERT, cancel=COMMAND_CANCEL,
-           list=COMMAND_LIST, delete=COMMAND_DELETE, master=MASTER)
+           list=COMMAND_LIST, delete=COMMAND_DELETE, master=MASTER,
+           summary=COMMAND_SW_SUMMARY, date=COMMAND_SW_DATE, link=COMMAND_SW_LINK)
 
 EXIT_NOTIFICATION = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 
@@ -93,6 +109,9 @@ class WebFeedsDB(SQLAlchemyBase):
     user_id = sql.Column(sql.Integer, index=True, nullable=False)
     web_feed = sql.Column(sql.Text, nullable=False)
     last_check = sql.Column(sql.DateTime, nullable=False, default=datetime.now)
+    summary = sql.Column(sql.Boolean, nullable=False, default=True)
+    date = sql.Column(sql.Boolean, nullable=False, default=True)
+    link = sql.Column(sql.Boolean, nullable=False, default=True)
     def __repr__(self):
         return f"<feed entry #{self.id!r}>"
 

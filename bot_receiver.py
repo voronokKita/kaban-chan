@@ -72,7 +72,7 @@ class ReceiverThread(threading.Thread):
 
         @bot.message_handler(commands=['help'])
         def help(message):
-            if USERS.get(uid):
+            if USERS.get(message.chat.id):
                 add_rss(message)
             helpers.send_message(bot, message.chat.id, HELP)
 
@@ -80,6 +80,7 @@ class ReceiverThread(threading.Thread):
         @bot.message_handler(commands=[KEY_ADD_NEW_FEED, KEY_INSERT_INTO_DB, KEY_CANCEL])
         def add_rss(message, check_out=False):
             """ Handles the insertion of new entries into the feeds db. """
+            text = ""
             uid = message.chat.id
             global USERS
             USERS.setdefault(uid, {AWAITING_RSS: False, POTENTIAL_RSS: None})
@@ -97,7 +98,7 @@ class ReceiverThread(threading.Thread):
                 try:
                     feedparser.parse(rss).feed.title
                     helpers.check_out_rss(rss, uid)
-                except DataAlreadyExistsError:
+                except DataAlreadyExists:
                     text = "I already watch this feed for you!"
                 except:
                     text = "Can't read the feed. Check for errors or try again later."
@@ -122,28 +123,28 @@ class ReceiverThread(threading.Thread):
             else:
                 text = f"You can use {COMMAND_CANCEL} to go back."
 
-            helpers.send_message(bot, uid, text)
+            if text:
+                helpers.send_message(bot, uid, text)
 
 
         @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])
         def list_rss(message):
             """ Sends the list of feeds associated with the id. Handles the deletion of feeds. """
+            text = ""
+            message_text = message.text.strip()
             uid = message.chat.id
             global USERS
 
             if USERS.get(uid):
                 add_rss(message)
 
-            elif message.text == COMMAND_LIST:
+            elif message_text == COMMAND_LIST:
                 text = helpers.list_rss(uid)
                 if not text:
                     text = "There is none!"
 
-            elif message.text == COMMAND_DELETE:
-                text = f"To delete an entry from your list of feeds use: {COMMAND_DELETE} [feed]"
-
-            elif DELETE_PATTERN.fullmatch(message.text.strip()):
-                feed = DELETE_PATTERN.findall( message.text.strip() )[0][1]
+            elif DELETE_PATTERN.fullmatch(message_text):
+                feed = DELETE_PATTERN.findall(message_text)[0][1]
                 if helpers.delete_rss(feed, uid):
                     text = "Done."
                 else:
@@ -152,7 +153,39 @@ class ReceiverThread(threading.Thread):
             else:
                 help(message)
 
-            helpers.send_message(bot, uid, text)
+            if text:
+                helpers.send_message(bot, uid, text)
+
+
+        @bot.message_handler(commands=[KEY_SWITCH_SUMMARY, KEY_SWITCH_DATE, KEY_SWITCH_LINK])
+        def switch(message):
+            """ Posts style options. """
+            text = ""
+            message_text = message.text.strip()
+            uid = message.chat.id
+            global USERS
+
+            if USERS.get(uid):
+                add_rss(message)
+
+            elif SUMMARY_PATTERN.fullmatch(message_text) or \
+                 DATE_PATTERN.fullmatch(message_text) or \
+                 LINK_PATTERN.fullmatch(message_text):
+
+                parts = COMMAND_PATTERN.findall(message_text)
+                try:
+                    helpers.check_out_rss(feed=parts[0][1], uid=uid)
+                except DataAlreadyExists:
+                    helpers.feed_switcher(uid, command=parts[0][0].strip(), rss=parts[0][1])
+                    text = "Done."
+                else:
+                    text = "No such web feed found. Check for errors."
+
+            else:
+                help(message)
+
+            if text:
+                helpers.send_message(bot, uid, text)
 
 
         @bot.message_handler(content_types=['text'])
