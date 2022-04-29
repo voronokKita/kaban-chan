@@ -44,7 +44,7 @@ class WebhookThread(threading.Thread):
             DEBUG = False,
             TESTING = False,
             PROPAGATE_EXCEPTIONS = True,
-            PRESERVE_CONTEXT_ON_EXCEPTION = False,
+            PRESERVE_CONTEXT_ON_EXCEPTION = True,
             SECRET_KEY = secrets.token_hex(),
         )
 

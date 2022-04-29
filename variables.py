@@ -32,6 +32,7 @@ TIME_FORMAT = 'on %A, %-d day of %B %Y, in %-H:%M'
 
 class DataAlreadyExistsError(Exception): pass
 class WrongWebhookRequestError(Exception): pass
+class FeedLoadError(Exception): pass
 
 
 KEY_ADD_NEW_FEED = "add"
@@ -129,12 +130,18 @@ LOG_FORMAT = '- %(asctime)s %(levelname)s: %(message)s'
 LOG_DATEFMT = '%Y-%m-%d %H:%M'
 
 werkzeug_log = logging.getLogger('werkzeug')
-werkzeug_log.setLevel('ERROR')
+werkzeug_log.setLevel('WARNING')
 werkzeug_log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
 werkzeug_log_handler.setFormatter( logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFMT) )
 werkzeug_log.addHandler(werkzeug_log_handler)
 
-log = logging.getLogger(__name__)
+telebot_log = telebot.logger
+telebot_log.setLevel('WARNING')
+telebot_log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
+telebot_log_handler.setFormatter( logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFMT) )
+telebot_log.addHandler(telebot_log_handler)
+
+log = telebot.logging.getLogger(__name__)
 log.setLevel('WARNING')
 log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
 log_handler.setFormatter( logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFMT) )

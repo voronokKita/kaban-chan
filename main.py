@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 # TODO option to disable links
-# TODO possability that a web feed is offline
-# TODO load the first feed entry after adding a feed
-# TODO comments
 """ Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/

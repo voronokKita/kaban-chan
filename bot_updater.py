@@ -24,18 +24,28 @@ class UpdaterThread(threading.Thread):
                     helpers.exit_signal()
 
     def _updater(self):
-        """ Loads the feeds database and goes through one by one, updates last_check. """
+        """ Loads the feeds database and goes through one by one, updates WebFeedsDB.last_check. """
         with SQLSession(db) as session:
             for db_entry in session.scalars( session.query(WebFeedsDB) ):
                 try:
                     feed = feedparser.parse(db_entry.web_feed)
+                    if not feed.entries:
+                        raise FeedLoadError(feed)
                     uid = db_entry.user_id
                     last_check = db_entry.last_check
+
                     top_post_date = self._check_the_feed(feed, last_check, uid)
 
                     if last_check < top_post_date:
                         db_entry.last_check = published
                         session.commit()
+
+                except FeedLoadError as feed:
+                    text = f"Failed to load {db_entry.web_feed} — not accessible. " \
+                           f"Technical details: \n{feed}"
+                    helpers.send_message(self.bot, db_entry.user_id, text)
+                    log.warning(f'failed to load feed - {feed}')
+
                 except Exception as error:
                     log.warning(f'feedparser fail - {error}')
 
@@ -49,18 +59,13 @@ class UpdaterThread(threading.Thread):
             if last_check >= published:
                 break
             else:
-                soup = BeautifulSoup(post.summary, features='html.parser')
-                summary = soup.text[:200]
-                text = f"{post.title}\n" \
-                       f"{published.strftime(TIME_FORMAT)}\n\n" \
-                       f"{summary.strip()}...\n\n" \
-                       f"{post.link}"
-                helpers.send_message(self.bot, uid, text)
+                helpers.send_a_post(post, published, self.bot, uid)
 
         top_post_date = datetime.fromtimestamp(
             time.mktime(feed.entries[0].published_parsed)
         )
         return top_post_date
+
 
     def join(self):
         threading.Thread.join(self)

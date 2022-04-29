@@ -121,3 +121,32 @@ def delete_rss(feed, uid):
             return True
         else:
             return False
+
+
+def send_a_post(post, published, bot, uid):
+    """ Sends a post from some feed to a uid. """
+    soup = BeautifulSoup(post.summary, features='html.parser')
+    summary = soup.text[:300]
+    text = f"{post.title}\n\n" \
+           f"{summary.strip()}...\n\n" \
+           f"{published.strftime(TIME_FORMAT)}\n" \
+           f"{post.link}"
+    send_message(bot, uid, text)
+
+
+def new_feed_preprocess(bot, uid, rss):
+    """ Sends the top post from a newly added feed to a uid. """
+    feed = feedparser.parse(rss)
+    top_post = feed.entries[0]
+    published = datetime.fromtimestamp(
+        time.mktime(top_post.published_parsed)
+    )
+    send_a_post(top_post, published, bot, uid)
+
+    with SQLSession(db) as session:
+        db_entry = session.query(WebFeedsDB).filter(
+            WebFeedsDB.user_id == uid,
+            WebFeedsDB.web_feed == rss,
+        ).first()
+        db_entry.last_check = published
+        session.commit()
