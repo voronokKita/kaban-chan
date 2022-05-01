@@ -46,23 +46,28 @@ class WebhookThread(threading.Thread):
             SECRET_KEY = secrets.token_hex(),
         )
 
-# TODO https://stackoverflow.com/questions/24222220/block-an-ip-address-from-accessing-my-flask-app-on-heroku
         @app.route(WEBHOOK_ENDPOINT, methods=['POST'])
         def receiver():
             """ Checks requests and passes them into the web db.
                 The db serves as a reliable request queue. """
+            global BANNED
+            ip_ = request.environ.get('REMOTE_ADDR')
+            if ip_ in BANNED:
+                flask.abort(403)
+
             data = None
             try:
                 if not request.headers.get('content-type') == 'application/json':
                     raise WrongWebhookRequestError
                 try:
                     data = request.get_data().decode('utf-8')
-                    telebot.types.Update.de_json(data)        #???
+                    telebot.types.Update.de_json(data)
                 except Exception:
                     raise WrongWebhookRequestError
             except WrongWebhookRequestError:
                 log.exception(f'Alien Invasion 👽 {request.get_data().decode("utf-8")}')
-                return "Unidentified Request Object", 403
+                BANNED.append(request.environ.get('REMOTE_ADDR'))
+                flask.abort(403)
             else:
                 with SQLSession(db) as session:
                     new_message = WebhookDB(data=data)

@@ -17,6 +17,7 @@ import feedparser
 from bs4 import BeautifulSoup
 
 from pyngrok import ngrok
+import flask
 from flask import Flask, request
 from werkzeug.serving import make_server
 
@@ -84,6 +85,7 @@ NEW_MESSAGES_EVENT = threading.Event()
 
 
 USERS = {}
+BANNED = []
 AWAITING_RSS = "AWAITING_FEED"
 POTENTIAL_RSS = "POTENTIAL_FEED"
 

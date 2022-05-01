@@ -8,6 +8,7 @@ https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examp
 https://stackoverflow.com/a/45017691
 https://stackoverflow.com/a/70345496
 https://github.com/TelegramBotAPI/errors
+https://stackoverflow.com/a/54800683
 """
 import helpers
 from variables import *
