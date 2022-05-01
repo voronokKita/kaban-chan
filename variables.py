@@ -53,11 +53,11 @@ COMMAND_SW_SUMMARY = f"/{KEY_SWITCH_SUMMARY}"
 COMMAND_SW_DATE = f"/{KEY_SWITCH_DATE}"
 COMMAND_SW_LINK = f"/{KEY_SWITCH_LINK}"
 
-DELETE_PATTERN = re.compile( r'({dell}\s+)(\S+)'.format(dell=COMMAND_DELETE) )
-SUMMARY_PATTERN = re.compile( r'({summary}\s+)(\S+)'.format(summary=COMMAND_SW_SUMMARY) )
-DATE_PATTERN = re.compile( r'({date}\s+)(\S+)'.format(date=COMMAND_SW_DATE) )
-LINK_PATTERN = re.compile( r'({link}\s+)(\S+)'.format(link=COMMAND_SW_LINK) )
-COMMAND_PATTERN = re.compile( r'(/\w+\s+)(\S+)' )
+PATTERN_DELETE = re.compile( r'({dell}\s+)(\S+)'.format(dell=COMMAND_DELETE) )
+PATTERN_SUMMARY = re.compile( r'({summary}\s+)(\S+)'.format(summary=COMMAND_SW_SUMMARY) )
+PATTERN_DATE = re.compile( r'({date}\s+)(\S+)'.format(date=COMMAND_SW_DATE) )
+PATTERN_LINK = re.compile( r'({link}\s+)(\S+)'.format(link=COMMAND_SW_LINK) )
+PATTERN_COMMAND = re.compile( r'(/\w+\s+)(\S+)' )
 
 HELP = """
 {add} - add a new web feed
@@ -88,6 +88,7 @@ AWAITING_RSS = "AWAITING_FEED"
 POTENTIAL_RSS = "POTENTIAL_FEED"
 
 
+PORT = 5000
 WEBHOOK_ENDPOINT = "/kaban-chan"
 WEBHOOK_WAS_SET = re.compile(r'Webhook was set')
 
@@ -103,11 +104,11 @@ DB_URI = pathlib.Path.cwd() / "resources" / "database.db"
 db = sql.create_engine(f"sqlite:///{DB_URI}", future=True)
 SQLAlchemyBase = declarative_base()
 
-class WebFeedsDB(SQLAlchemyBase):
+class FeedsDB(SQLAlchemyBase):
     __tablename__ = "feeds"
     id = sql.Column(sql.Integer, primary_key=True)
-    user_id = sql.Column(sql.Integer, index=True, nullable=False)
-    web_feed = sql.Column(sql.Text, nullable=False)
+    uid = sql.Column(sql.Integer, index=True, nullable=False)
+    feed = sql.Column(sql.Text, nullable=False)
     last_check = sql.Column(sql.DateTime, nullable=False, default=datetime.now)
     summary = sql.Column(sql.Boolean, nullable=False, default=True)
     date = sql.Column(sql.Boolean, nullable=False, default=True)
@@ -149,13 +150,13 @@ LOG_FORMAT = '- %(asctime)s %(levelname)s: %(message)s'
 LOG_DATEFMT = '%Y-%m-%d %H:%M'
 
 werkzeug_log = logging.getLogger('werkzeug')
-werkzeug_log.setLevel('WARNING')
+werkzeug_log.setLevel('ERROR')
 werkzeug_log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
 werkzeug_log_handler.setFormatter( logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFMT) )
 werkzeug_log.addHandler(werkzeug_log_handler)
 
 telebot_log = telebot.logger
-telebot_log.setLevel('WARNING')
+telebot_log.setLevel('ERROR')
 telebot_log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
 telebot_log_handler.setFormatter( logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFMT) )
 telebot_log.addHandler(telebot_log_handler)

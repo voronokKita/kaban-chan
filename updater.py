@@ -17,21 +17,20 @@ class UpdaterThread(threading.Thread):
             self.bot = telebot.TeleBot(API)
             while True:
                 self._updater()
-                if EXIT_EVENT.wait(FEEDS_UPDATE_TIMEOUT):
-                    break
+                if EXIT_EVENT.wait(FEEDS_UPDATE_TIMEOUT): break
         except Exception as error:
-                    self.exception = error
-                    helpers.exit_signal()
+            self.exception = error
+            helpers.exit_signal()
 
     def _updater(self):
-        """ Loads the feeds database and goes through one by one, updates WebFeedsDB.last_check. """
+        """ Loads the feeds db and goes through one by one, updates FeedsDB.last_check. """
         with SQLSession(db) as session:
-            for db_entry in session.scalars( session.query(WebFeedsDB) ):
+            for db_entry in session.scalars( session.query(FeedsDB) ):
                 try:
-                    feed = feedparser.parse(db_entry.web_feed)
+                    feed = feedparser.parse(db_entry.feed)
                     if not feed.entries:
                         raise FeedLoadError(feed)
-                    uid = db_entry.user_id
+                    uid = db_entry.uid
                     last_check = db_entry.last_check
                     style_args = (db_entry.summary, db_entry.date, db_entry.link)
 
@@ -42,16 +41,16 @@ class UpdaterThread(threading.Thread):
                         session.commit()
 
                 except FeedLoadError as feed:
-                    text = f"Failed to load {db_entry.web_feed} — not accessible. " \
+                    text = f"Failed to load {db_entry.feed} — not accessible. " \
                            f"Technical details: \n{feed}"
-                    helpers.send_message(self.bot, db_entry.user_id, text)
+                    helpers.send_message(self.bot, db_entry.uid, text)
                     log.warning(f'failed to load feed - {feed}')
 
                 except Exception as error:
                     log.warning(f'feedparser fail - {error}')
 
     def _check_the_feed(self, feed, last_check, uid, style_args):
-        """ Iterates through all posts in the feed until it reaches the previously loaded one.
+        """ Iterates through all posts in a feed until it reaches the previously loaded one.
             Returns the publication date of the newest post. """
         for post in feed.entries:
             published = datetime.fromtimestamp(

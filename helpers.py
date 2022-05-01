@@ -13,8 +13,8 @@ def send_message(bot, uid, text):
     """ Handles errors in requests to Telegram. """
     def resend_message(retry, sleep, delete=False):
         if retry == 0:
-            if delete:
-                delete_user(args[1])
+            if delete: delete_user(args[1])
+            else: pass
             return False
         else:
             time.sleep(sleep)
@@ -64,69 +64,6 @@ def send_message(bot, uid, text):
         break
 
 
-def delete_user(uid):
-    """ Takes all the feeds associated with some id and requests deletion. """
-    with SQLSession(db) as session:
-        result = session.query(WebFeedsDB).filter(WebFeedsDB.user_id == uid)
-        for entry in session.scalars(result):
-            delete_rss(entry.web_feed, uid)
-
-
-def check_out_rss(feed, uid):
-    """ Raises an error if this id has already added this feed. """
-    with SQLSession(db) as session:
-        result = session.query(WebFeedsDB).filter(
-            WebFeedsDB.user_id == uid, WebFeedsDB.web_feed == feed
-        ).first()
-        if result:
-            raise DataAlreadyExists
-
-
-def add_new_rss(feed, uid):
-    """ Inserts a new entry into the feeds db. """
-    with SQLSession(db) as session:
-        new_entry = WebFeedsDB(user_id=uid, web_feed=feed)
-        session.add(new_entry)
-        session.commit()
-    info('db - a new entry')
-
-
-def list_rss(uid):
-    """ Loads & returns list of feeds associated with some id. """
-    list_of_feeds = ""
-    with SQLSession(db) as session:
-        result = session.query(WebFeedsDB).filter(WebFeedsDB.user_id == uid)
-        for i, entry in enumerate( session.scalars(result), 1 ):
-            list_of_feeds += f"{i}. {entry.web_feed}\n"
-            date = entry.last_check.strftime(TIME_FORMAT)
-            list_of_feeds += f"\tlast update: {date}\n"
-            s = "\tsummary: on, " if entry.summary else "\tsummary: off, "
-            s += "date: on, " if entry.date else "date: off, "
-            s += "link: on" if entry.link else "link: off"
-            list_of_feeds += s + "\n\n"
-
-    if not list_of_feeds:
-        return ""
-    else:
-        list_of_feeds += f"To delete an entry use: {COMMAND_DELETE} [feed]"
-        return list_of_feeds
-
-
-def delete_rss(feed, uid):
-    """ Delete some entry from the feeds db. """
-    with SQLSession(db) as session:
-        result = session.query(WebFeedsDB).filter(
-            WebFeedsDB.user_id == uid, WebFeedsDB.web_feed == feed
-        ).first()
-        if result:
-            session.delete(result)
-            session.commit()
-            info('db - entry removed')
-            return True
-        else:
-            return False
-
-
 def send_a_post(bot, uid, post, published, summary=True, date=True, link=True):
     """ Sends a post from some feed to a uid. """
     text = f"{post.title}"
@@ -143,7 +80,7 @@ def send_a_post(bot, uid, post, published, summary=True, date=True, link=True):
 
 
 def new_feed_preprocess(bot, uid, rss):
-    """ Sends the top post from a newly added feed to a uid. """
+    """ Sends the top post from a newly added feed to the uid. """
     feed = feedparser.parse(rss)
     top_post = feed.entries[0]
     published = datetime.fromtimestamp(
@@ -152,20 +89,71 @@ def new_feed_preprocess(bot, uid, rss):
     send_a_post(bot, uid, top_post, published)
 
     with SQLSession(db) as session:
-        db_entry = session.query(WebFeedsDB).filter(
-            WebFeedsDB.user_id == uid,
-            WebFeedsDB.web_feed == rss,
+        db_entry = session.query(FeedsDB).filter(
+            FeedsDB.uid == uid,
+            FeedsDB.feed == rss,
         ).first()
         db_entry.last_check = published
         session.commit()
 
 
+def check_out_rss(feed, uid):
+    """ Raises an exception if this uid has already added this feed. """
+    with SQLSession(db) as session:
+        result = session.query(FeedsDB).filter(
+            FeedsDB.uid == uid, FeedsDB.feed == feed
+        ).first()
+        if result:
+            raise DataAlreadyExists
+
+
+def add_new_rss(feed, uid):
+    """ Inserts a new entry into the feeds db. """
+    with SQLSession(db) as session:
+        new_entry = FeedsDB(uid=uid, feed=feed)
+        session.add(new_entry)
+        session.commit()
+    info('db - a new entry')
+
+
+def delete_rss(feed, uid):
+    """ Delete some entry from the feeds db. """
+    with SQLSession(db) as session:
+        result = session.query(FeedsDB).filter(
+            FeedsDB.uid == uid, FeedsDB.feed == feed
+        ).first()
+        if result:
+            session.delete(result)
+            session.commit()
+            info('db - entry removed')
+            return True
+        else:
+            return False
+
+
+def list_rss(uid):
+    """ Loads & returns list of feeds associated with some id. """
+    list_of_feeds = ""
+    with SQLSession(db) as session:
+        result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
+        for i, entry in enumerate( session.scalars(result), 1 ):
+            list_of_feeds += f"{i}. {entry.feed}\n"
+            date = entry.last_check.strftime(TIME_FORMAT)
+            list_of_feeds += f"\tlast update: {date}\n"
+            s = "\tsummary: on, " if entry.summary else "\tsummary: off, "
+            s += "date: on, " if entry.date else "date: off, "
+            s += "link: on" if entry.link else "link: off"
+            list_of_feeds += s + "\n\n"
+
+    return list_of_feeds
+
+
 def feed_switcher(uid, command, rss):
     """ Changes post style. """
     with SQLSession(db) as session:
-        db_entry = session.query(WebFeedsDB).filter(
-            WebFeedsDB.user_id == uid,
-            WebFeedsDB.web_feed == rss,
+        db_entry = session.query(FeedsDB).filter(
+            FeedsDB.uid == uid,
+            FeedsDB.feed == rss,
         ).first()
         if command == COMMAND_SW_SUMMARY:
             db_entry.summary = not db_entry.summary
@@ -174,3 +162,11 @@ def feed_switcher(uid, command, rss):
         elif command == COMMAND_SW_LINK:
             db_entry.link = not db_entry.link
         session.commit()
+
+
+def delete_user(uid):
+    """ Takes all the feeds associated with some id and requests deletion. """
+    with SQLSession(db) as session:
+        result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
+        for entry in session.scalars(result):
+            delete_rss(entry.feed, uid)

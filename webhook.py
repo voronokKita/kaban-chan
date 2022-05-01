@@ -6,8 +6,6 @@ class WebhookThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.server = None
-        #self.context = app.app_context()
-        #self.context.push()
         self.exception = None
 
     def __repr__(self):
@@ -17,7 +15,7 @@ class WebhookThread(threading.Thread):
         try:
             self._make_tunnel()
             app = self._flask_app()
-            self.server = make_server('127.0.0.1', 5000, app)
+            self.server = make_server('127.0.0.1', PORT, app)
             READY_TO_WORK.set()
             self.server.serve_forever()
         except Exception as error:
@@ -25,7 +23,7 @@ class WebhookThread(threading.Thread):
             helpers.exit_signal()
 
     def _make_tunnel(self):
-        tunnel = ngrok.connect(5000, bind_tls=True)
+        tunnel = ngrok.connect(PORT, bind_tls=True)
         url = tunnel.public_url + WEBHOOK_ENDPOINT
         k = [
             'curl', '--location', '--request', 'POST',
@@ -48,6 +46,7 @@ class WebhookThread(threading.Thread):
             SECRET_KEY = secrets.token_hex(),
         )
 
+# TODO https://stackoverflow.com/questions/24222220/block-an-ip-address-from-accessing-my-flask-app-on-heroku
         @app.route(WEBHOOK_ENDPOINT, methods=['POST'])
         def receiver():
             """ Checks requests and passes them into the web db.
@@ -58,12 +57,12 @@ class WebhookThread(threading.Thread):
                     raise WrongWebhookRequestError
                 try:
                     data = request.get_data().decode('utf-8')
-                    telebot.types.Update.de_json(data)
-                except:
+                    telebot.types.Update.de_json(data)        #???
+                except Exception:
                     raise WrongWebhookRequestError
             except WrongWebhookRequestError:
                 log.exception(f'Alien Invasion 👽 {request.get_data().decode("utf-8")}')
-                return "Unidentified Request Object", 400
+                return "Unidentified Request Object", 403
             else:
                 with SQLSession(db) as session:
                     new_message = WebhookDB(data=data)

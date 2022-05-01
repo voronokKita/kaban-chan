@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-""" Thanks to
+""" v1 April of 2022
+
+    Thanks to
 https://habr.com/ru/post/350648/
 https://habr.com/ru/post/495036/
 https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examples/webhook_flask_echo_bot.py
@@ -10,8 +12,8 @@ https://github.com/TelegramBotAPI/errors
 import helpers
 from variables import *
 from webhook import WebhookThread
-from bot_updater import UpdaterThread
-from bot_receiver import ReceiverThread
+from updater import UpdaterThread
+from receiver import ReceiverThread
 
 
 def main():

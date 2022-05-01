@@ -39,8 +39,8 @@ class ReceiverThread(threading.Thread):
                 data = message.data
                 session.query(WebhookDB).where(WebhookDB.id == message.id).delete()
                 session.commit()
-                if not session.query(WebhookDB).first():
-                    NEW_MESSAGES_EVENT.clear()
+            if not session.query(WebhookDB).first():
+                NEW_MESSAGES_EVENT.clear()
         update = telebot.types.Update.de_json(data)
         self.bot.process_new_updates([update])
 
@@ -50,7 +50,7 @@ class ReceiverThread(threading.Thread):
 
 
     def _receiver(self):
-        """ Main messages processor. """
+        """ Main telebot requests processor. """
         bot = telebot.TeleBot(API)
 
 
@@ -72,8 +72,6 @@ class ReceiverThread(threading.Thread):
 
         @bot.message_handler(commands=['help'])
         def help(message):
-            if USERS.get(message.chat.id):
-                add_rss(message)
             helpers.send_message(bot, message.chat.id, HELP)
 
 
@@ -100,13 +98,17 @@ class ReceiverThread(threading.Thread):
                     helpers.check_out_rss(rss, uid)
                 except DataAlreadyExists:
                     text = "I already watch this feed for you!"
-                except:
+                except Exception:
                     text = "Can't read the feed. Check for errors or try again later."
                 else:
-                    text = f"All is fine — I managed to read the feed! Use the {COMMAND_INSERT} command to complete."
+                    text = f"All is fine — I managed to read the feed! " \
+                            "Use the {COMMAND_INSERT} command to complete."
                     USERS[uid][POTENTIAL_RSS] = rss
 
-            elif USERS[uid][AWAITING_RSS] and USERS[uid][POTENTIAL_RSS] and message.text == COMMAND_INSERT:
+            elif USERS[uid][AWAITING_RSS] and \
+                    USERS[uid][POTENTIAL_RSS] and \
+                    message.text == COMMAND_INSERT:
+
                 rss = USERS[uid][POTENTIAL_RSS]
                 helpers.add_new_rss(rss, uid)
                 text = "New web feed added!"
@@ -123,13 +125,13 @@ class ReceiverThread(threading.Thread):
             else:
                 text = f"You can use {COMMAND_CANCEL} to go back."
 
-            if text:
-                helpers.send_message(bot, uid, text)
+            helpers.send_message(bot, uid, text)
 
 
         @bot.message_handler(commands=[KEY_SHOW_USER_FEEDS, KEY_DELETE_FROM_DB])
         def list_rss(message):
-            """ Sends the list of feeds associated with the id. Handles the deletion of feeds. """
+            """ Sends the list of feeds associated with the id.
+                Handles the deletion of feeds. """
             text = ""
             message_text = message.text.strip()
             uid = message.chat.id
@@ -143,8 +145,8 @@ class ReceiverThread(threading.Thread):
                 if not text:
                     text = "There is none!"
 
-            elif DELETE_PATTERN.fullmatch(message_text):
-                feed = DELETE_PATTERN.findall(message_text)[0][1]
+            elif PATTERN_DELETE.fullmatch(message_text):
+                feed = PATTERN_DELETE.findall(message_text)[0][1]
                 if helpers.delete_rss(feed, uid):
                     text = "Done."
                 else:
@@ -168,11 +170,11 @@ class ReceiverThread(threading.Thread):
             if USERS.get(uid):
                 add_rss(message)
 
-            elif SUMMARY_PATTERN.fullmatch(message_text) or \
-                 DATE_PATTERN.fullmatch(message_text) or \
-                 LINK_PATTERN.fullmatch(message_text):
+            elif PATTERN_SUMMARY.fullmatch(message_text) or \
+                    PATTERN_DATE.fullmatch(message_text) or \
+                    PATTERN_LINK.fullmatch(message_text):
 
-                parts = COMMAND_PATTERN.findall(message_text)
+                parts = PATTERN_COMMAND.findall(message_text)
                 try:
                     helpers.check_out_rss(feed=parts[0][1], uid=uid)
                 except DataAlreadyExists:
