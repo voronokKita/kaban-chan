@@ -2,9 +2,9 @@
 
 ![picture](kaban.jpg "Kaban-chan")
 
-One telegram bot to learn them all.
+One telegram bot to learn them all. https://t.me/KabanChan_bot
 
-Need to get a bot API from BotFather. <br>
+If you want to run a copy, you need to get a bot API from BotFather. <br>
 Need to install cURL. Possibly to open 5000 port and allow network connections. <br>
 Work on Windows do not guaranteed.
 

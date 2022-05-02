@@ -10,6 +10,7 @@ https://stackoverflow.com/a/70345496
 https://github.com/TelegramBotAPI/errors
 https://stackoverflow.com/a/54800683
 """
+# TODO notifications to users
 import helpers
 from variables import *
 from webhook import WebhookThread

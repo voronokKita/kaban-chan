@@ -66,7 +66,9 @@ class ReceiverThread(threading.Thread):
             helpers.send_message(bot, uid, f"Hello, @{message.chat.username}!")
             time.sleep(1)
             text = f"Use {COMMAND_ADD} command. I will check your web feed from time to time " \
-                    "and notify when something new comes up~"
+                    "and notify when something new comes up~\n\n" \
+                    "ⓘ The server may be slow so don't rush to use a command again " \
+                    "if there is no immediate response. (´･ᴗ･ ` )"
             helpers.send_message(bot, uid, text)
 
 
@@ -102,7 +104,7 @@ class ReceiverThread(threading.Thread):
                     text = "Can't read the feed. Check for errors or try again later."
                 else:
                     text = f"All is fine — I managed to read the feed! " \
-                            "Use the {COMMAND_INSERT} command to complete."
+                           f"Use the {COMMAND_INSERT} command to complete."
                     USERS[uid][POTENTIAL_RSS] = rss
 
             elif USERS[uid][AWAITING_RSS] and \
@@ -120,7 +122,7 @@ class ReceiverThread(threading.Thread):
                 USERS.pop(uid)
 
             elif message.text == COMMAND_INSERT:
-                text = f"Use {COMMAND_ADD} command."
+                text = f"Use {COMMAND_ADD} command first."
 
             else:
                 text = f"You can use {COMMAND_CANCEL} to go back."

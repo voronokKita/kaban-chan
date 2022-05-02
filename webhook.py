@@ -15,7 +15,7 @@ class WebhookThread(threading.Thread):
         try:
             self._make_tunnel()
             app = self._flask_app()
-            self.server = make_server('127.0.0.1', PORT, app)
+            self.server = make_server(ADDRESS, PORT, app)
             READY_TO_WORK.set()
             self.server.serve_forever()
         except Exception as error:
@@ -51,8 +51,8 @@ class WebhookThread(threading.Thread):
             """ Checks requests and passes them into the web db.
                 The db serves as a reliable request queue. """
             global BANNED
-            ip_ = request.environ.get('REMOTE_ADDR')
-            if ip_ in BANNED:
+            ip = request.environ.get('REMOTE_ADDR')
+            if ip in BANNED:
                 flask.abort(403)
 
             data = None
