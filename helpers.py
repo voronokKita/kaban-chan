@@ -64,18 +64,28 @@ def send_message(bot, uid, text):
         break
 
 
-def send_a_post(bot, uid, post, published, summary=True, date=True, link=True):
+def send_a_post(bot, uid, post, published,
+                summary=True, date=True, link=True, rss=None):
     """ Sends a post from some feed to a uid. """
     text = f"{post.title}"
     if summary:
-        soup = BeautifulSoup(post.summary, features='html.parser')
-        s = soup.text[:300].strip()
-        s += "..." if len(soup.text) > 300 else ""
-        text += f"\n\n{s}"
+        try:
+            soup = BeautifulSoup(post.summary, features='html.parser')
+            s = soup.text[:300].strip()
+            s += "..." if len(soup.text) > 300 else ""
+            text += f"\n\n{s}"
+        except Exception:
+            feed_switcher(uid, COMMAND_SW_SUMMARY, rss)
+
     if date:
         text += f"\n\n{published.strftime(TIME_FORMAT)}"
+
     if link:
-        text += f"\n{post.link}"
+        try:
+            text += f"\n{post.link}"
+        except Exception:
+            feed_switcher(uid, COMMAND_SW_LINK, rss)
+
     send_message(bot, uid, text)
 
 
@@ -86,7 +96,7 @@ def new_feed_preprocess(bot, uid, rss):
     published = datetime.fromtimestamp(
         time.mktime(top_post.published_parsed)
     )
-    send_a_post(bot, uid, top_post, published)
+    send_a_post(bot, uid, top_post, published, rss=rss)
 
     with SQLSession(db) as session:
         db_entry = session.query(FeedsDB).filter(

@@ -96,7 +96,9 @@ class ReceiverThread(threading.Thread):
             elif check_out:
                 rss = message.text.strip()
                 try:
-                    feedparser.parse(rss).feed.title
+                    feed = feedparser.parse(rss)
+                    feed.entries[0].title
+                    feed.entries[0].published_parsed
                     helpers.check_out_rss(rss, uid)
                 except DataAlreadyExists:
                     text = "I already watch this feed for you!"
