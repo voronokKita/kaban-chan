@@ -30,15 +30,19 @@ class UpdaterThread(threading.Thread):
                     feed = feedparser.parse(db_entry.feed)
                     if not feed.entries:
                         raise FeedLoadError(feed)
-                    uid = db_entry.uid
-                    last_check = db_entry.last_check
-                    style_args = (db_entry.summary, db_entry.date, db_entry.link)
 
-                    top_post_date = self._check_the_feed(feed, last_check, uid, style_args)
+                    style_args = (db_entry.summary, db_entry.date, db_entry.link) #!
+                    self._check_the_feed(feed, db_entry.last_check, db_entry.uid, style_args) #!
 
-                    if last_check < top_post_date:
-                        db_entry.last_check = top_post_date
+                    top_post_date = datetime.fromtimestamp(
+                        time.mktime(feed.entries[0].published_parsed)
+                    )
+                    if top_post_date > db_entry.last_check:
+                        print(f"A {top_post_date} > {db_entry.last_check}")
+                        db_entry.last_check = top_post_date #!
                         session.commit()
+                    else:
+                        print(f"B {top_post_date} <= {db_entry.last_check}")
 
                 except FeedLoadError as feed:
                     text = f"Failed to load {db_entry.feed} — not accessible. " \
@@ -60,11 +64,6 @@ class UpdaterThread(threading.Thread):
                 break
             else:
                 helpers.send_a_post(self.bot, uid, post, published, *style_args)
-
-        top_post_date = datetime.fromtimestamp(
-            time.mktime(feed.entries[0].published_parsed)
-        )
-        return top_post_date
 
 
     def join(self):
