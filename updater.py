@@ -23,26 +23,19 @@ class UpdaterThread(threading.Thread):
             helpers.exit_signal()
 
     def _updater(self):
-        """ Loads the feeds db and goes through one by one, updates FeedsDB.last_check. """
+        """ Loads the feeds db and goes through one by one. """
         with SQLSession(db) as session:
             for db_entry in session.scalars( session.query(FeedsDB) ):
                 try:
                     feed = feedparser.parse(db_entry.feed)
-                    if not feed.entries:
+                    if not feed.entries or not feed.entries[0].title:
                         raise FeedLoadError(feed)
 
-                    style_args = (db_entry.summary, db_entry.date, db_entry.link) #!
-                    self._check_the_feed(feed, db_entry.last_check, db_entry.uid, style_args) #!
+                    new_top_posts = self._check_the_feed(feed, db_entry)
 
-                    top_post_date = datetime.fromtimestamp(
-                        time.mktime(feed.entries[0].published_parsed)
-                    )
-                    if top_post_date > db_entry.last_check:
-                        print(f"A {top_post_date} > {db_entry.last_check}")
-                        db_entry.last_check = top_post_date #!
+                    if db_entry.top_posts != new_top_posts:
+                        db_entry.top_posts = new_top_posts
                         session.commit()
-                    else:
-                        print(f"B {top_post_date} <= {db_entry.last_check}")
 
                 except FeedLoadError as feed:
                     text = f"Failed to load {db_entry.feed} — not accessible. " \
@@ -53,18 +46,32 @@ class UpdaterThread(threading.Thread):
                 except Exception as error:
                     log.warning(f'feedparser fail - {error}')
 
-    def _check_the_feed(self, feed, last_check, uid, style_args):
-        """ Iterates through all posts in a feed until it reaches the previously loaded one.
-            Returns the publication date of the newest post. """
-        for post in feed.entries:
-            published = datetime.fromtimestamp(
-                time.mktime(post.published_parsed)
-            )
-            if last_check >= published:
-                break
-            else:
-                helpers.send_a_post(self.bot, uid, post, published, *style_args)
+    def _check_the_feed(self, feed, db_entry):
+        """ ? сохранить состояние после каждого сообщения??? """
+        top_posts = []
+        for i, post in enumerate(feed.entries):
+            if i == POSTS_TO_CHECK: break
+            else: top_posts.append(post)
 
+        new_top_posts = []
+        old_top_posts = db_entry.top_posts.split(' /// ')
+        style_args = (db_entry.summary, db_entry.date, db_entry.link)
+        for post in top_posts[::-1]:
+
+            title = hashlib.md5(
+                post.title.strip().encode()
+            ).hexdigest()
+            new_top_posts.append(title)
+
+            if title in old_top_posts:
+                continue
+            else:
+                published = datetime.fromtimestamp(
+                    time.mktime(post.published_parsed)
+                )
+                helpers.send_a_post(self.bot, db_entry.uid, post, published, *style_args)
+
+        return ' /// '.join(new_top_posts)
 
     def join(self):
         threading.Thread.join(self)

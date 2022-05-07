@@ -103,7 +103,10 @@ def new_feed_preprocess(bot, uid, rss):
             FeedsDB.uid == uid,
             FeedsDB.feed == rss,
         ).first()
-        db_entry.last_check = published
+        title = hashlib.md5(
+            top_post.title.strip().encode()
+        ).hexdigest()
+        db_entry.top_posts = title
         session.commit()
 
 
@@ -148,8 +151,6 @@ def list_rss(uid):
         result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
         for i, entry in enumerate( session.scalars(result), 1 ):
             list_of_feeds += f"{i}. {entry.feed}\n"
-            date = entry.last_check.strftime(TIME_FORMAT)
-            list_of_feeds += f"\tlast update: {date}\n"
             s = "\tsummary: on, " if entry.summary else "\tsummary: off, "
             s += "date: on, " if entry.date else "date: off, "
             s += "link: on" if entry.link else "link: off"
