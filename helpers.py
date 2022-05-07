@@ -64,45 +64,44 @@ def send_message(bot, uid, text):
         break
 
 
-def send_a_post(bot, uid, post, published,
-                summary=True, date=True, link=True, rss=None):
+def send_a_post(bot, post, db_entry, feed=None):
     """ Sends a post from some feed to a uid. """
-    text = f"{post.title}"
-    if summary:
+    text = post.title
+    if db_entry.summary:
         try:
             soup = BeautifulSoup(post.summary, features='html.parser')
             s = soup.text[:300].strip()
             s += "..." if len(soup.text) > 300 else ""
             text += f"\n\n{s}"
         except Exception:
-            feed_switcher(uid, COMMAND_SW_SUMMARY, rss)
+            feed_switcher(db_entry.uid, COMMAND_SW_SUMMARY, feed)
 
-    if date:
-        text += f"\n\n{published.strftime(TIME_FORMAT)}"
+    if db_entry.date:
+        published = datetime.fromtimestamp(
+            time.mktime(post.published_parsed)
+        ).strftime(TIME_FORMAT)
+        text += f"\n\n{published}"
 
-    if link:
+    if db_entry.link:
         try:
             text += f"\n{post.link}"
         except Exception:
-            feed_switcher(uid, COMMAND_SW_LINK, rss)
+            feed_switcher(db_entry.uid, COMMAND_SW_LINK, feed)
 
-    send_message(bot, uid, text)
+    send_message(bot, db_entry.uid, text)
 
 
-def new_feed_preprocess(bot, uid, rss):
+def new_feed_preprocess(bot, uid, feed):
     """ Sends the top post from a newly added feed to the uid. """
-    feed = feedparser.parse(rss)
-    top_post = feed.entries[0]
-    published = datetime.fromtimestamp(
-        time.mktime(top_post.published_parsed)
-    )
-    send_a_post(bot, uid, top_post, published, rss=rss)
-
     with SQLSession(db) as session:
         db_entry = session.query(FeedsDB).filter(
             FeedsDB.uid == uid,
-            FeedsDB.feed == rss,
+            FeedsDB.feed == feed,
         ).first()
+
+        top_post = feedparser.parse(feed).entries[0]
+        send_a_post(bot, top_post, db_entry, feed=feed)
+
         title = hashlib.md5(
             top_post.title.strip().encode()
         ).hexdigest()
@@ -159,12 +158,12 @@ def list_rss(uid):
     return list_of_feeds
 
 
-def feed_switcher(uid, command, rss):
+def feed_switcher(uid, command, feed):
     """ Changes post style. """
     with SQLSession(db) as session:
         db_entry = session.query(FeedsDB).filter(
             FeedsDB.uid == uid,
-            FeedsDB.feed == rss,
+            FeedsDB.feed == feed,
         ).first()
         if command == COMMAND_SW_SUMMARY:
             db_entry.summary = not db_entry.summary

@@ -37,9 +37,9 @@ class UpdaterThread(threading.Thread):
                         db_entry.top_posts = new_top_posts
                         session.commit()
 
-                except FeedLoadError as feed:
+                except FeedLoadError as error:
                     text = f"Failed to load {db_entry.feed} — not accessible. " \
-                           f"Technical details: \n{feed}"
+                           f"Technical details: \n{error}"
                     helpers.send_message(self.bot, db_entry.uid, text)
                     log.warning(f'failed to load feed - {feed}')
 
@@ -47,7 +47,8 @@ class UpdaterThread(threading.Thread):
                     log.warning(f'feedparser fail - {error}')
 
     def _check_the_feed(self, feed, db_entry):
-        """ ? сохранить состояние после каждого сообщения??? """
+        """ Iterates through top posts of a feed. Sends new posts.
+            Returns hashes of the posts titles. """
         top_posts = []
         for i, post in enumerate(feed.entries):
             if i == POSTS_TO_CHECK: break
@@ -55,7 +56,6 @@ class UpdaterThread(threading.Thread):
 
         new_top_posts = []
         old_top_posts = db_entry.top_posts.split(' /// ')
-        style_args = (db_entry.summary, db_entry.date, db_entry.link)
         for post in top_posts[::-1]:
 
             title = hashlib.md5(
@@ -63,13 +63,8 @@ class UpdaterThread(threading.Thread):
             ).hexdigest()
             new_top_posts.append(title)
 
-            if title in old_top_posts:
-                continue
-            else:
-                published = datetime.fromtimestamp(
-                    time.mktime(post.published_parsed)
-                )
-                helpers.send_a_post(self.bot, db_entry.uid, post, published, *style_args)
+            if title in old_top_posts: continue
+            else: helpers.send_a_post(self.bot, post, db_entry)
 
         return ' /// '.join(new_top_posts)
 
