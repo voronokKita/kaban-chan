@@ -1,14 +1,22 @@
 #!/usr/bin/env python
-""" v1 April of 2022
+"""
+v1 April of 2022
+v2 May
 
-    Thanks to
-https://habr.com/ru/post/350648/
-https://habr.com/ru/post/495036/
-https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examples/webhook_flask_echo_bot.py
-https://stackoverflow.com/a/45017691
-https://stackoverflow.com/a/70345496
-https://github.com/TelegramBotAPI/errors
-https://stackoverflow.com/a/54800683
+Thanks to
+    https://habr.com/ru/post/350648/
+    https://habr.com/ru/post/495036/
+    https://github.com/eternnoir/pyTelegramBotAPI/blob/master/examples/webhook_examples/webhook_flask_echo_bot.py
+    https://stackoverflow.com/a/45017691
+    https://stackoverflow.com/a/70345496
+    https://github.com/TelegramBotAPI/errors
+    https://stackoverflow.com/a/54800683
+
+Note
+    The bad news is that a web feed doesn't guarantee a strict sequence and order.
+    Many of them update the post publication time each time they update the post text,
+    causing all posts to reorder unpredictably.
+    I tried to solve this problem by memorysing N posts themes.
 """
 # TODO notifications to users
 import helpers

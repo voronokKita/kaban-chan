@@ -23,7 +23,8 @@ class UpdaterThread(threading.Thread):
             helpers.exit_signal()
 
     def _updater(self):
-        """ Loads the feeds db and goes through one by one. """
+        """ Loads the feeds db and goes through one by one.
+            Updates FeedsDB last_posts & last_check. """
         with SQLSession(db) as session:
             for db_entry in session.scalars( session.query(FeedsDB) ):
                 try:
@@ -31,10 +32,11 @@ class UpdaterThread(threading.Thread):
                     if not feed.entries or not feed.entries[0].title:
                         raise FeedLoadError(feed)
 
-                    new_top_posts = self._check_the_feed(feed, db_entry)
+                    new_posts, top_post_date = self._check_the_feed(feed, db_entry)
 
-                    if db_entry.top_posts != new_top_posts:
-                        db_entry.top_posts = new_top_posts
+                    if new_posts:
+                        db_entry.last_posts = new_posts
+                        db_entry.last_check = top_post_date
                         session.commit()
 
                 except FeedLoadError as error:
@@ -47,26 +49,45 @@ class UpdaterThread(threading.Thread):
                     log.warning(f'feedparser fail - {error}')
 
     def _check_the_feed(self, feed, db_entry):
-        """ Iterates through top posts of a feed. Sends new posts.
-            Returns hashes of the posts titles. """
-        top_posts = []
-        for i, post in enumerate(feed.entries):
-            if i == POSTS_TO_CHECK: break
-            else: top_posts.append(post)
+        """ Process posts of a feed. Returns titles of last posts and the top post's date.
+        Note:
+        A web feed doesn't guarantee a strict sequence and order.
+        Many of them update a post's publication date each time they update the post's text,
+        causing all posts to reorder unpredictably.
+        I tried to solve this problem by memorysing titles of N posts in md5.
+        """
+        old_posts = db_entry.last_posts.split(' /// ')
+        old_set = set(old_posts)
+        posts_to_send = []
+        for post in feed.entries:
+            published = datetime.fromtimestamp(
+                time.mktime(post.published_parsed)
+            )
+            if db_entry.last_check >= published:
+                break
+            else:
+                title = hashlib.md5(
+                    post.title.strip().encode()
+                ).hexdigest()
 
-        new_top_posts = []
-        old_top_posts = db_entry.top_posts.split(' /// ')
-        for post in top_posts[::-1]:
+                if title in old_set: continue
+                else: posts_to_send.append({'title': title, 'post': post})
 
-            title = hashlib.md5(
-                post.title.strip().encode()
-            ).hexdigest()
-            new_top_posts.append(title)
+        if posts_to_send:
+            for post in posts_to_send[::-1]:
+                helpers.send_a_post(self.bot, post['post'], db_entry)
 
-            if title in old_top_posts: continue
-            else: helpers.send_a_post(self.bot, post, db_entry)
+            l = [post['title'] for post in posts_to_send] + old_posts
+            new_posts = ' /// '.join(l[:POSTS_TO_STORE])
 
-        return ' /// '.join(new_top_posts)
+            top_post_date = datetime.fromtimestamp(
+                time.mktime(posts_to_send[0]['post'].published_parsed)
+            )
+        else:
+            new_posts = None
+            top_post_date = None
+
+        return new_posts, top_post_date
 
     def join(self):
         threading.Thread.join(self)

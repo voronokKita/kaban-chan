@@ -105,7 +105,11 @@ def new_feed_preprocess(bot, uid, feed):
         title = hashlib.md5(
             top_post.title.strip().encode()
         ).hexdigest()
-        db_entry.top_posts = title
+        top_post_date = datetime.fromtimestamp(
+            time.mktime(top_post.published_parsed)
+        )
+        db_entry.last_posts = title
+        db_entry.last_check = top_post_date
         session.commit()
 
 

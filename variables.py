@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session as SQLSession
 MASTER = "@simple_complexity"
 
 FEEDS_UPDATE_TIMEOUT = 3600
-POSTS_TO_CHECK = 10
+POSTS_TO_STORE = 40
 TIME_FORMAT = 'on %A, in %-d day of %B %Y, at %-H:%M %z'
 
 class DataAlreadyExists(Exception): pass
@@ -114,7 +114,8 @@ class FeedsDB(SQLAlchemyBase):
     id = sql.Column(sql.Integer, primary_key=True)
     uid = sql.Column(sql.Integer, index=True, nullable=False)
     feed = sql.Column(sql.Text, nullable=False)
-    top_posts = sql.Column(sql.Text, nullable=True, default=' ')
+    last_posts = sql.Column(sql.Text, nullable=False, default=' ')
+    last_check = sql.Column(sql.DateTime, nullable=False, default=datetime.now)
     summary = sql.Column(sql.Boolean, nullable=False, default=True)
     date = sql.Column(sql.Boolean, nullable=False, default=True)
     link = sql.Column(sql.Boolean, nullable=False, default=True)
