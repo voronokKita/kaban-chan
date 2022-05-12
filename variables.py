@@ -1,15 +1,15 @@
-import os
-import re
-import sys
-import time
-import signal
-import hashlib
-import secrets
-import pathlib
-import logging
-import threading
-import subprocess
 from datetime import datetime
+import hashlib
+import logging
+import os
+import pathlib
+import re
+import secrets
+import signal
+import subprocess
+import sys
+import threading
+import time
 
 import telebot
 from telebot.apihelper import ApiTelegramException
@@ -37,30 +37,39 @@ class DataAlreadyExists(Exception): pass
 class WrongWebhookRequestError(Exception): pass
 class FeedLoadError(Exception): pass
 
+USERS = {}
+BANNED = []
 
-KEY_ADD_NEW_FEED = "add"
-KEY_INSERT_INTO_DB = "confirm"
+
+READY_TO_WORK = threading.Event()
+EXIT_EVENT = threading.Event()
+NEW_MESSAGES_EVENT = threading.Event()
+
+
+# Telebot commands
+KEY_ADD = "add"
+KEY_INSERT = "confirm"
 KEY_CANCEL = "cancel"
-KEY_SHOW_USER_FEEDS = "list"
-KEY_DELETE_FROM_DB = "delete"
-KEY_SWITCH_SUMMARY = "summary"
-KEY_SWITCH_DATE = "date"
-KEY_SWITCH_LINK = "link"
+KEY_LIST = "list"
+KEY_DELETE = "delete"
+KEY_SW_SUMMARY = "summary"
+KEY_SW_DATE = "date"
+KEY_SW_LINK = "link"
 
-COMMAND_ADD = f"/{KEY_ADD_NEW_FEED}"
-COMMAND_INSERT = f"/{KEY_INSERT_INTO_DB}"
+COMMAND_ADD = f"/{KEY_ADD}"
+COMMAND_INSERT = f"/{KEY_INSERT}"
 COMMAND_CANCEL = f"/{KEY_CANCEL}"
-COMMAND_LIST = f"/{KEY_SHOW_USER_FEEDS}"
-COMMAND_DELETE = f"/{KEY_DELETE_FROM_DB}"
-COMMAND_SW_SUMMARY = f"/{KEY_SWITCH_SUMMARY}"
-COMMAND_SW_DATE = f"/{KEY_SWITCH_DATE}"
-COMMAND_SW_LINK = f"/{KEY_SWITCH_LINK}"
+COMMAND_LIST = f"/{KEY_LIST}"
+COMMAND_DELETE = f"/{KEY_DELETE}"
+COMMAND_SW_SUMMARY = f"/{KEY_SW_SUMMARY}"
+COMMAND_SW_DATE = f"/{KEY_SW_DATE}"
+COMMAND_SW_LINK = f"/{KEY_SW_LINK}"
 
-PATTERN_DELETE = re.compile( r'({dell}\s+)(\S+)'.format(dell=COMMAND_DELETE) )
-PATTERN_SUMMARY = re.compile( r'({summary}\s+)(\S+)'.format(summary=COMMAND_SW_SUMMARY) )
-PATTERN_DATE = re.compile( r'({date}\s+)(\S+)'.format(date=COMMAND_SW_DATE) )
-PATTERN_LINK = re.compile( r'({link}\s+)(\S+)'.format(link=COMMAND_SW_LINK) )
-PATTERN_COMMAND = re.compile( r'(/\w+\s+)(\S+)' )
+PATTERN_DELETE = re.compile(rf'({COMMAND_DELETE}\s+)(\S+)')
+PATTERN_SUMMARY = re.compile(rf'({COMMAND_SW_SUMMARY}\s+)(\S+)')
+PATTERN_DATE = re.compile(rf'({COMMAND_SW_DATE}\s+)(\S+)')
+PATTERN_LINK = re.compile(rf'({COMMAND_SW_LINK}\s+)(\S+)')
+PATTERN_COMMAND = re.compile(r'(/\w+\s+)(\S+)')
 
 HELP = """
 {add} - add a new web feed
@@ -75,23 +84,15 @@ HELP = """
 /start - restart the bot
 master: {master}
 """.format(add=COMMAND_ADD, confirm=COMMAND_INSERT, cancel=COMMAND_CANCEL,
-           list=COMMAND_LIST, delete=COMMAND_DELETE, master=MASTER,
-           summary=COMMAND_SW_SUMMARY, date=COMMAND_SW_DATE, link=COMMAND_SW_LINK)
+           list=COMMAND_LIST, delete=COMMAND_DELETE, date=COMMAND_SW_DATE,
+           summary=COMMAND_SW_SUMMARY, link=COMMAND_SW_LINK, master=MASTER)
 
-EXIT_NOTIFICATION = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
+EXIT_NOTE = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 
-
-READY_TO_WORK = threading.Event()
-EXIT_EVENT = threading.Event()
-NEW_MESSAGES_EVENT = threading.Event()
+SUMMARY = 300
 
 
-USERS = {}
-BANNED = []
-AWAITING_RSS = "AWAITING_FEED"
-POTENTIAL_RSS = "POTENTIAL_FEED"
-
-
+# Web settings
 ADDRESS = '127.0.0.1'
 PORT = 5000
 WEBHOOK_ENDPOINT = "/kaban-chan"
@@ -105,6 +106,7 @@ else:
     API = input("Enter the bot's API key: ").strip()
 
 
+# Database
 DB_URI = pathlib.Path.cwd() / "resources" / "database.db"
 db = sql.create_engine(f"sqlite:///{DB_URI}", future=True)
 SQLAlchemyBase = declarative_base()
@@ -130,6 +132,7 @@ class WebhookDB(SQLAlchemyBase):
         return f"<web message #{self.id!r}>"
 
 
+# Requests errors
 """ Telegram request error codes
 400 - Bad Request: chat not found
 400 - Bad request: user not found
@@ -151,6 +154,7 @@ BOT_BLOCKED = re.compile(r'kicked|blocked|deactivated')
 BOT_TIMEOUT = re.compile(r'Too many requests')
 
 
+# Logging
 LOG = pathlib.Path.cwd() / "resources" / "feedback.log"
 LOG_FORMAT = '- %(asctime)s %(levelname)s: %(message)s'
 LOG_DATEFMT = '%Y-%m-%d %H:%M'

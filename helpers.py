@@ -32,46 +32,41 @@ def send_message(bot, uid, text):
 
             elif UID_NOT_FOUND.search(error.description):
                 retry = 1 if retry is None else retry - 1
-                if resend_message(retry, sleep=5, delete=True):
-                    continue
-                log.warning('user/chat not found == uid deleted')
+                if resend_message(retry, sleep=5, delete=True): continue
+                else: log.warning('user/chat not found; uid deleted')
 
             elif BOT_BLOCKED.search(error.description):
                 retry = 3 if retry is None else retry - 1
-                if resend_message(retry, sleep=10, delete=True):
-                    continue
-                log.warning('bot blocked == uid deleted')
+                if resend_message(retry, sleep=10, delete=True): continue
+                else: log.warning('bot blocked; uid deleted')
 
             elif BOT_TIMEOUT.search(error.description):
                 retry = 1 if retry is None else retry - 1
-                if resend_message(retry, sleep=10):
-                    continue
-                log.warning('telgram timeout')
+                if resend_message(retry, sleep=10): continue
+                else: log.warning('telgram timeout')
 
             else:
                 retry = 3 if retry is None else retry - 1
-                if resend_message(retry, sleep=2):
-                    continue
-                log.exception('undefined telegram problem')
+                if resend_message(retry, sleep=2): continue
+                else: log.exception('undefined telegram problem')
 
         except Exception as error:
             retry = 1 if retry is None else retry - 1
-            if resend_message(retry, sleep=5):
-                continue
-            log.exception('request')
+            if resend_message(retry, sleep=5): continue
+            else: log.exception('request')
 
         time.sleep(0.1)
         break
 
 
-def send_a_post(bot, post, db_entry, feed=None):
+def send_a_post(bot, post, db_entry, feed):
     """ Sends a post from some feed to a uid. """
     text = post.title
     if db_entry.summary:
         try:
             soup = BeautifulSoup(post.summary, features='html.parser')
-            s = soup.text[:300].strip()
-            s += "..." if len(soup.text) > 300 else ""
+            s = soup.text[:SUMMARY].strip()
+            s += "..." if len(soup.text) > SUMMARY else ""
             text += f"\n\n{s}"
         except Exception:
             feed_switcher(db_entry.uid, COMMAND_SW_SUMMARY, feed)
@@ -91,75 +86,98 @@ def send_a_post(bot, post, db_entry, feed=None):
     send_message(bot, db_entry.uid, text)
 
 
-def new_feed_preprocess(bot, uid, feed):
-    """ Sends the top post from a newly added feed to the uid. """
+def check_out_feed(feed, uid, first_time=True):
+    """ Raises an exception if this uid has already added this feed. """
+    if first_time:
+        try:
+            f = feedparser.parse(feed)
+            p = f.entries[0]
+            if not f.href or not p.published_parsed or not p.title:
+                raise Exception
+        except Exception:
+            raise Exception
+
     with SQLSession(db) as session:
         db_entry = session.query(FeedsDB).filter(
-            FeedsDB.uid == uid,
-            FeedsDB.feed == feed,
-        ).first()
-
-        top_post = feedparser.parse(feed).entries[0]
-        send_a_post(bot, top_post, db_entry, feed=feed)
-
-        title = hashlib.md5(
-            top_post.title.strip().encode()
-        ).hexdigest()
-        top_post_date = datetime.fromtimestamp(
-            time.mktime(top_post.published_parsed)
-        )
-        db_entry.last_posts = title
-        db_entry.last_check = top_post_date
-        session.commit()
-
-
-def check_out_rss(feed, uid):
-    """ Raises an exception if this uid has already added this feed. """
-    with SQLSession(db) as session:
-        result = session.query(FeedsDB).filter(
             FeedsDB.uid == uid, FeedsDB.feed == feed
         ).first()
-        if result:
+        if db_entry:
             raise DataAlreadyExists
 
 
-def add_new_rss(feed, uid):
+def add_new_feed(bot, uid, feed):
     """ Inserts a new entry into the feeds db. """
     with SQLSession(db) as session:
         new_entry = FeedsDB(uid=uid, feed=feed)
         session.add(new_entry)
         session.commit()
     info('db - a new entry')
+    try:
+        new_feed_preprocess(bot, uid, feed)
+    except Exception:
+        return "A new web feed has been added, but some issues have arisen with reading it. " \
+               "The feed will be automatically deleted if problems continue."
+    else:
+        return "New web feed added!"
 
 
-def delete_rss(feed, uid):
+def new_feed_preprocess(bot, uid, feed):
+    """ Sends the top post from a newly added feed to the uid. """
+    try:
+        with SQLSession(db) as session:
+            db_entry = session.query(FeedsDB).filter(
+                FeedsDB.uid == uid,
+                FeedsDB.feed == feed,
+            ).first()
+
+            top_post = feedparser.parse(feed).entries[0]
+            send_a_post(bot, top_post, db_entry, feed)
+
+            title = hashlib.md5(
+                top_post.title.strip().encode()
+            ).hexdigest()
+            top_post_date = datetime.fromtimestamp(
+                time.mktime(top_post.published_parsed)
+            )
+            db_entry.last_posts = title
+            db_entry.last_check = top_post_date
+            session.commit()
+    except Exception as error:
+        log.exception("a new feed preprocess failed")
+        raise error
+
+
+def delete_a_feed(feed, uid, silent=False):
     """ Delete some entry from the feeds db. """
     with SQLSession(db) as session:
-        result = session.query(FeedsDB).filter(
+        db_entry = session.query(FeedsDB).filter(
             FeedsDB.uid == uid, FeedsDB.feed == feed
         ).first()
-        if result:
-            session.delete(result)
+        if db_entry:
+            session.delete(db_entry)
             session.commit()
             info('db - entry removed')
-            return True
+            text = "Done."
         else:
-            return False
+            text = "No such web feed found. Check for errors."
+
+    if silent is False:
+        return text
 
 
-def list_rss(uid):
+def list_user_feeds(uid):
     """ Loads & returns list of feeds associated with some id. """
     list_of_feeds = ""
     with SQLSession(db) as session:
-        result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
-        for i, entry in enumerate( session.scalars(result), 1 ):
+        feeds = session.query(FeedsDB).filter(FeedsDB.uid == uid)
+        for i, entry in enumerate( session.scalars(feeds), 1 ):
             list_of_feeds += f"{i}. {entry.feed}\n"
             s = "\tsummary: on, " if entry.summary else "\tsummary: off, "
             s += "date: on, " if entry.date else "date: off, "
             s += "link: on" if entry.link else "link: off"
             list_of_feeds += s + "\n\n"
 
-    return list_of_feeds
+    return list_of_feeds if list_of_feeds else "There is none!"
 
 
 def feed_switcher(uid, command, feed):
@@ -183,4 +201,4 @@ def delete_user(uid):
     with SQLSession(db) as session:
         result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
         for entry in session.scalars(result):
-            delete_rss(entry.feed, uid)
+            delete_a_feed(entry.feed, uid, silent=True)

@@ -11,15 +11,12 @@ Thanks to
     https://stackoverflow.com/a/70345496
     https://github.com/TelegramBotAPI/errors
     https://stackoverflow.com/a/54800683
-
-Note
-    The bad news is that a web feed doesn't guarantee a strict sequence and order.
-    Many of them update the post publication time each time they update the post text,
-    causing all posts to reorder unpredictably.
-    I tried to solve this problem by memorysing N posts themes.
 """
 # TODO notifications to users
+# TODO exception from message sender
+# TODO feed nickname
 import helpers
+import bot_config
 from variables import *
 from webhook import WebhookThread
 from updater import UpdaterThread
@@ -30,19 +27,29 @@ def main():
     print("I woke up (*・ω・)ﾉ")
     time.sleep(0.2)
 
-    server = WebhookThread()
-    receiver = ReceiverThread()
-    updater = UpdaterThread()
+    try:
+        bot = bot_config.get_bot()
+    except Exception:
+        log.exception()
+        print("failed to process a bot.")
+        sys.exit(1)
+    else:
+        server = WebhookThread()
+        receiver = ReceiverThread(bot)
+        updater = UpdaterThread(bot)
 
     print("starting a webhook")
     server.start()
-    if READY_TO_WORK.wait(10):
+    if READY_TO_WORK.wait(20):
         print("starting receiver & updater")
         receiver.start()
         updater.start()
         time.sleep(1)
         info(">>> up & running >>>")
         print("All work has started (´｡• ω •｡`)")
+    else:
+        print("fail to start the webhook.")
+        sys.exit(2)
 
     if EXIT_EVENT.wait():
         server.shutdown()
@@ -52,14 +59,14 @@ def main():
         try:
             thread.join()
             print(f"stopping a {thread}")
-        except Exception as error:
-            print(f"error in a {thread}")
+        except Exception:
             log.exception(thread)
+            print(f"error in a {thread}")
             errors = True
 
     print("Go to sleep (´-ω-｀)…zZZ")
     info("---   stopping   ---\n")
-    sys.exit(1) if errors else sys.exit(0)
+    sys.exit(3) if errors else sys.exit(0)
 
 
 if __name__ == '__main__':

@@ -3,9 +3,9 @@ import helpers
 
 
 class UpdaterThread(threading.Thread):
-    def __init__(self):
+    def __init__(self, bot):
         threading.Thread.__init__(self)
-        self.bot = None
+        self.bot = bot
         self.exception = None
 
     def __repr__(self):
@@ -14,7 +14,6 @@ class UpdaterThread(threading.Thread):
     def run(self):
         """ Checks feeds for updates from time to time. """
         try:
-            self.bot = telebot.TeleBot(API)
             while True:
                 self._updater()
                 if EXIT_EVENT.wait(FEEDS_UPDATE_TIMEOUT): break
@@ -63,7 +62,7 @@ class UpdaterThread(threading.Thread):
             published = datetime.fromtimestamp(
                 time.mktime(post.published_parsed)
             )
-            if db_entry.last_check >= published:
+            if published <= db_entry.last_check:
                 break
             else:
                 title = hashlib.md5(
@@ -75,7 +74,7 @@ class UpdaterThread(threading.Thread):
 
         if posts_to_send:
             for post in posts_to_send[::-1]:
-                helpers.send_a_post(self.bot, post['post'], db_entry)
+                helpers.send_a_post(self.bot, post['post'], db_entry, feed.href)
 
             l = [post['title'] for post in posts_to_send] + old_posts
             new_posts = ' /// '.join(l[:POSTS_TO_STORE])
