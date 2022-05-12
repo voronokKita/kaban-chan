@@ -14,6 +14,7 @@ class UpdaterThread(threading.Thread):
     def run(self):
         """ Checks feeds for updates from time to time. """
         try:
+            self._notifications()
             while True:
                 self._updater()
                 if EXIT_EVENT.wait(FEEDS_UPDATE_TIMEOUT): break
@@ -21,11 +22,29 @@ class UpdaterThread(threading.Thread):
             self.exception = error
             helpers.exit_signal()
 
+    def _notifications(self):
+        """ Sends messages to users from a file. """
+        messages = []
+        if NOTIFICATIONS.exists():
+            with open(NOTIFICATIONS, 'r', encoding='utf-8') as file:
+                text = file.read()
+                messages = [m.strip() for m in text.split('>>>') if m.strip()]
+
+        if messages:
+            with SQLSession(db) as session:
+                query = session.query(FeedsDB.uid).distinct()
+                for uid in session.scalars(query):
+                    for m in messages:
+                        helpers.send_message(self.bot, uid, m)
+
+            with open(NOTIFICATIONS, 'w') as f: f.write('')
+            info("notifications sent out")
+
     def _updater(self):
         """ Loads the feeds db and goes through one by one.
             Updates FeedsDB last_posts & last_check. """
         with SQLSession(db) as session:
-            for db_entry in session.scalars( session.query(FeedsDB) ):
+            for db_entry in session.scalars(session.query(FeedsDB)):
                 try:
                     feed = feedparser.parse(db_entry.feed)
                     if not feed.entries or not feed.entries[0].title:

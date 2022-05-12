@@ -37,6 +37,8 @@ class DataAlreadyExists(Exception): pass
 class WrongWebhookRequestError(Exception): pass
 class FeedLoadError(Exception): pass
 
+NOTIFICATIONS = pathlib.Path.cwd() / "resources" / "notifications.txt"
+
 USERS = {}
 BANNED = []
 

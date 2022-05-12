@@ -12,8 +12,6 @@ Thanks to
     https://github.com/TelegramBotAPI/errors
     https://stackoverflow.com/a/54800683
 """
-# TODO notifications to users
-# TODO exception from message sender
 # TODO feed nickname
 import helpers
 import bot_config
@@ -52,16 +50,17 @@ def main():
         sys.exit(2)
 
     if EXIT_EVENT.wait():
+        print("shutting down")
         server.shutdown()
 
     errors = False
     for thread in [server, receiver, updater]:
         try:
             thread.join()
-            print(f"stopping a {thread}")
+            print(f"{thread} stopped")
         except Exception:
             log.exception(thread)
-            print(f"error in a {thread}")
+            print(f"error in {thread}")
             errors = True
 
     print("Go to sleep (´-ω-｀)…zZZ")
