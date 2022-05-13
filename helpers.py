@@ -60,14 +60,18 @@ def send_message(bot, uid, text):
 
 
 def send_a_post(bot, post, db_entry, feed):
-    """ Sends a post from some feed to a uid. """
-    text = post.title
+    """ Makes a post from some feed and sends it to a uid. """
+    text = ""
+    if db_entry.short: text += f"{db_entry.short}: "
+
+    text += post.title + "\n"
+
     if db_entry.summary:
         try:
             soup = BeautifulSoup(post.summary, features='html.parser')
             s = soup.text[:SUMMARY].strip()
             s += "..." if len(soup.text) > SUMMARY else ""
-            text += f"\n\n{s}"
+            text += "\n" + s + "\n"
         except Exception:
             feed_switcher(db_entry.uid, COMMAND_SW_SUMMARY, feed)
 
@@ -75,11 +79,11 @@ def send_a_post(bot, post, db_entry, feed):
         published = datetime.fromtimestamp(
             time.mktime(post.published_parsed)
         ).strftime(TIME_FORMAT)
-        text += f"\n\n{published}"
+        text += "\n" + published + "\n"
 
     if db_entry.link:
         try:
-            text += f"\n{post.link}"
+            text += post.link + "\n"
         except Exception:
             feed_switcher(db_entry.uid, COMMAND_SW_LINK, feed)
 
@@ -171,13 +175,34 @@ def list_user_feeds(uid):
     with SQLSession(db) as session:
         feeds = session.query(FeedsDB).filter(FeedsDB.uid == uid)
         for i, entry in enumerate( session.scalars(feeds), 1 ):
-            list_of_feeds += f"{i}. {entry.feed}\n"
-            s = "\tsummary: on, " if entry.summary else "\tsummary: off, "
-            s += "date: on, " if entry.date else "date: off, "
-            s += "link: on" if entry.link else "link: off"
-            list_of_feeds += s + "\n\n"
+
+            short = f"{entry.short}: " if entry.short else ""
+            s = "on" if entry.summary else "off"
+            d = "on" if entry.date else "off"
+            l = "on" if entry.link else "off"
+
+            list_of_feeds += f"{i}. {short}{entry.feed}\n"
+            list_of_feeds += f"\tsummary: {s}, date: {d}, link: {l}\n\n"
 
     return list_of_feeds if list_of_feeds else "There is none!"
+
+
+def feed_shortcut(uid, shortcut, feed):
+    """ Assign shortcut to a feed. """
+    shortcut = None if len(shortcut) == 0 else shortcut
+    try:
+        with SQLSession(db) as session:
+            db_entry = session.query(FeedsDB).filter(
+                FeedsDB.uid == uid,
+                FeedsDB.feed == feed,
+            ).first()
+            db_entry.short = shortcut
+            session.commit()
+    except Exception:
+        log.exception('def feed_shortcut')
+        return "Undefined error."
+    else:
+        return "Done."
 
 
 def feed_switcher(uid, command, feed):

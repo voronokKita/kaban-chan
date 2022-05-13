@@ -77,10 +77,11 @@ def get_bot():
         helpers.send_message(bot, uid, text)
 
 
-    @bot.message_handler(commands=[KEY_LIST, KEY_DELETE])
+    @bot.message_handler(commands=[KEY_LIST, KEY_DELETE, KEY_SHORTCUT])
     def list_user_feeds(message):
         """ Sends the list of feeds associated with the id.
-            Handles the deletion of feeds. """
+            Handles the deletion of feeds.
+            Handles shortcuts. """
         text = ""
         message_text = message.text.strip()
         uid = message.chat.id
@@ -96,11 +97,24 @@ def get_bot():
             feed = PATTERN_DELETE.findall(message_text)[0][1]
             text = helpers.delete_a_feed(feed, uid)
 
+        elif PATTERN_SHORTCUT.fullmatch(message_text):
+            parts = PATTERN_SHORTCUT.findall(message_text)
+            feed = parts[0][1].strip()
+            shortcut = parts[0][2]
+            try:
+                if len(shortcut) > SHORTCUT: raise IndexError
+                helpers.check_out_feed(feed, uid, first_time=False)
+            except IndexError:
+                text = f"The maximum length is {SHORTCUT} characters."
+            except DataAlreadyExists:
+                text = helpers.feed_shortcut(uid, shortcut, feed)
+            else:
+                text = "No such web feed found. Check for errors."
+
         else:
             help(message)
 
-        if text:
-            helpers.send_message(bot, uid, text)
+        if text: helpers.send_message(bot, uid, text)
 
 
     @bot.message_handler(commands=[KEY_SW_SUMMARY, KEY_SW_DATE, KEY_SW_LINK])
@@ -132,8 +146,7 @@ def get_bot():
         else:
             help(message)
 
-        if text:
-            helpers.send_message(bot, uid, text)
+        if text: helpers.send_message(bot, uid, text)
 
 
     @bot.message_handler(content_types=['text'])

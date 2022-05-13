@@ -30,17 +30,20 @@ from sqlalchemy.orm import Session as SQLSession
 MASTER = "@simple_complexity"
 
 FEEDS_UPDATE_TIMEOUT = 3600
-POSTS_TO_STORE = 40
+
 TIME_FORMAT = 'on %A, in %-d day of %B %Y, at %-H:%M %z'
+
+NOTIFICATIONS = pathlib.Path.cwd() / "resources" / "notifications.txt"
+
+SUMMARY = 400
+SHORTCUT = 30
+
+USERS = {}
+BANNED = []
 
 class DataAlreadyExists(Exception): pass
 class WrongWebhookRequestError(Exception): pass
 class FeedLoadError(Exception): pass
-
-NOTIFICATIONS = pathlib.Path.cwd() / "resources" / "notifications.txt"
-
-USERS = {}
-BANNED = []
 
 
 READY_TO_WORK = threading.Event()
@@ -54,6 +57,7 @@ KEY_INSERT = "confirm"
 KEY_CANCEL = "cancel"
 KEY_LIST = "list"
 KEY_DELETE = "delete"
+KEY_SHORTCUT = "short"
 KEY_SW_SUMMARY = "summary"
 KEY_SW_DATE = "date"
 KEY_SW_LINK = "link"
@@ -63,11 +67,13 @@ COMMAND_INSERT = f"/{KEY_INSERT}"
 COMMAND_CANCEL = f"/{KEY_CANCEL}"
 COMMAND_LIST = f"/{KEY_LIST}"
 COMMAND_DELETE = f"/{KEY_DELETE}"
+COMMAND_SHORTCUT = f"/{KEY_SHORTCUT}"
 COMMAND_SW_SUMMARY = f"/{KEY_SW_SUMMARY}"
 COMMAND_SW_DATE = f"/{KEY_SW_DATE}"
 COMMAND_SW_LINK = f"/{KEY_SW_LINK}"
 
 PATTERN_DELETE = re.compile(rf'({COMMAND_DELETE}\s+)(\S+)')
+PATTERN_SHORTCUT = re.compile(rf'({COMMAND_SHORTCUT}\s+)(\S+\s*)(\S+)?')
 PATTERN_SUMMARY = re.compile(rf'({COMMAND_SW_SUMMARY}\s+)(\S+)')
 PATTERN_DATE = re.compile(rf'({COMMAND_SW_DATE}\s+)(\S+)')
 PATTERN_LINK = re.compile(rf'({COMMAND_SW_LINK}\s+)(\S+)')
@@ -81,17 +87,17 @@ HELP = """
 {delete} - use it with argument ( {delete} [feed] ), it'll delete a feed from your list
 {date} - ( {date} [feed] ), switch display of publication date in all posts from some feed
 {summary} - ( {summary} [feed] ), switch display of summary
-{link} - ( {link} [feed] ), switch display of the URL of the post
+{link} - ( {link} [feed] ), switch display of a URL of feed's posts
+{short} - ( {short} [feed] [shortcut] ), make a {s_len} character shortcut for a feed, or empty to clear it
 /help - this message
 /start - restart the bot
 master: {master}
 """.format(add=COMMAND_ADD, confirm=COMMAND_INSERT, cancel=COMMAND_CANCEL,
            list=COMMAND_LIST, delete=COMMAND_DELETE, date=COMMAND_SW_DATE,
-           summary=COMMAND_SW_SUMMARY, link=COMMAND_SW_LINK, master=MASTER)
+           summary=COMMAND_SW_SUMMARY, link=COMMAND_SW_LINK, short=COMMAND_SHORTCUT,
+           s_len=SHORTCUT, master=MASTER)
 
 EXIT_NOTE = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
-
-SUMMARY = 300
 
 
 # Web settings
@@ -109,6 +115,8 @@ else:
 
 
 # Database
+POSTS_TO_STORE = 50
+
 DB_URI = pathlib.Path.cwd() / "resources" / "database.db"
 db = sql.create_engine(f"sqlite:///{DB_URI}", future=True)
 SQLAlchemyBase = declarative_base()
@@ -123,6 +131,7 @@ class FeedsDB(SQLAlchemyBase):
     summary = sql.Column(sql.Boolean, nullable=False, default=True)
     date = sql.Column(sql.Boolean, nullable=False, default=True)
     link = sql.Column(sql.Boolean, nullable=False, default=True)
+    short = sql.Column(sql.String(SHORTCUT), nullable=True, default=None)
     def __repr__(self):
         return f"<feed entry #{self.id!r}>"
 
