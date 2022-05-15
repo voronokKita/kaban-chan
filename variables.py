@@ -104,7 +104,7 @@ EXIT_NOTE = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 ADDRESS = '127.0.0.1'
 PORT = 5000
 WEBHOOK_ENDPOINT = "/kaban-chan"
-WEBHOOK_WAS_SET = re.compile(r'Webhook was set')
+WEBHOOK_WAS_SET = re.compile(r'was set|already set')
 
 API = pathlib.Path.cwd() / "resources" / ".api"
 if API.exists():

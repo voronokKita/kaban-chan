@@ -12,7 +12,6 @@ Thanks to
     https://github.com/TelegramBotAPI/errors
     https://stackoverflow.com/a/54800683
 """
-# TODO password
 import helpers
 import bot_config
 from variables import *
