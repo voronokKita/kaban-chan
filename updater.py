@@ -64,6 +64,9 @@ class UpdaterThread(threading.Thread):
     def _updater(self):
         """ Loads the feeds db and goes through one by one.
             Updates FeedsDB last_posts & last_check. """
+        with open(UPDATER_BACKUP, 'w') as f:
+            csv.DictWriter(f, fieldnames=['id', 'title']).writeheader()
+
         with SQLSession(db) as session:
             for db_entry in session.scalars(session.query(FeedsDB)):
                 try:
@@ -89,6 +92,8 @@ class UpdaterThread(threading.Thread):
 
                 except Exception as error:
                     log.warning(f'feedparser fail - {error}')
+
+        UPDATER_BACKUP.unlink()
 
     def _check_the_feed(self, feed, db_entry):
         """ Process posts of a feed. Returns titles of last posts and the top post's date.
@@ -119,7 +124,6 @@ class UpdaterThread(threading.Thread):
         else:
             with open(UPDATER_BACKUP, 'a+') as f:
                 writer = csv.DictWriter(f, fieldnames=['id', 'title'])
-                writer.writeheader()
                 for post in posts_to_send[::-1]:
                     helpers.send_a_post(self.bot, post['post'], db_entry, feed.href)
                     writer.writerow({'id': db_entry.id, 'title': post['title']})
