@@ -43,7 +43,7 @@ def send_message(bot, uid, text):
             elif BOT_TIMEOUT.search(error.description):
                 retry = 1 if retry is None else retry - 1
                 if resend_message(retry, sleep=10): continue
-                else: log.warning('telgram timeout')
+                else: log.warning('telegram timeout')
 
             else:
                 retry = 3 if retry is None else retry - 1
@@ -174,7 +174,7 @@ def list_user_feeds(uid):
     list_of_feeds = ""
     with SQLSession(db) as session:
         feeds = session.query(FeedsDB).filter(FeedsDB.uid == uid)
-        for i, entry in enumerate( session.scalars(feeds), 1 ):
+        for i, entry in enumerate(session.scalars(feeds), 1):
 
             short = f"{entry.short}: " if entry.short else ""
             s = "on" if entry.summary else "off"

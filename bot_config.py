@@ -6,7 +6,6 @@ def get_bot():
     """ Main telebot requests processor. """
     bot = telebot.TeleBot(API)
 
-
     @bot.message_handler(commands=['start', 'restart'])
     def hello(message):
         """ Will also delete any old data in order to work as a restart function. """
@@ -19,16 +18,14 @@ def get_bot():
         helpers.send_message(bot, uid, f"Hello, @{message.chat.username}!")
         time.sleep(1)
         text = f"Use {COMMAND_ADD} command. I will check your web feed from time to time " \
-                "and notify when something new comes up~\n\n" \
-                "ⓘ The server may be slow so don't rush to use commands again " \
-                "if there is no immediate response. (´･ᴗ･ ` )"
+               "and notify when something new comes up~\n\n" \
+               "ⓘ The server may be slow so don't rush to use commands again " \
+               "if there is no immediate response. (´･ᴗ･ ` )"
         helpers.send_message(bot, uid, text)
-
 
     @bot.message_handler(commands=['help'])
     def help(message):
         helpers.send_message(bot, message.chat.id, HELP)
-
 
     @bot.message_handler(commands=[KEY_ADD, KEY_INSERT, KEY_CANCEL])
     def add_new_feed(message, check_out=False):
@@ -76,7 +73,6 @@ def get_bot():
 
         helpers.send_message(bot, uid, text)
 
-
     @bot.message_handler(commands=[KEY_LIST, KEY_DELETE, KEY_SHORTCUT])
     def list_user_feeds(message):
         """ Sends the list of feeds associated with the id.
@@ -116,7 +112,6 @@ def get_bot():
 
         if text: helpers.send_message(bot, uid, text)
 
-
     @bot.message_handler(commands=[KEY_SW_SUMMARY, KEY_SW_DATE, KEY_SW_LINK])
     def switch(message):
         """ Posts style options. """
@@ -148,7 +143,6 @@ def get_bot():
 
         if text: helpers.send_message(bot, uid, text)
 
-
     @bot.message_handler(content_types=['text'])
     def get_text_data(message):
         """ Process text messages. """
@@ -158,6 +152,5 @@ def get_bot():
             add_new_feed(message, check_out=True)
         else:
             help(message)
-
 
     return bot

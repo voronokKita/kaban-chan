@@ -22,7 +22,8 @@ class WebhookThread(threading.Thread):
             self.exception = error
             helpers.exit_signal()
 
-    def _make_tunnel(self):
+    @staticmethod
+    def _make_tunnel():
         tunnel = ngrok.connect(PORT, bind_tls=True)
         url = tunnel.public_url + WEBHOOK_ENDPOINT
         k = [
@@ -35,7 +36,8 @@ class WebhookThread(threading.Thread):
         if not WEBHOOK_WAS_SET.search(result):
             raise Exception(result)
 
-    def _flask_app(self):
+    @staticmethod
+    def _flask_app():
         app = Flask(__name__)
         app.config.update(
             ENV = 'production',

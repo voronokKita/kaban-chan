@@ -1,4 +1,6 @@
 from datetime import datetime
+from collections import defaultdict
+import csv
 import hashlib
 import logging
 import os
@@ -34,6 +36,7 @@ FEEDS_UPDATE_TIMEOUT = 3600
 TIME_FORMAT = 'on %A, in %-d day of %B %Y, at %-H:%M %z'
 
 NOTIFICATIONS = pathlib.Path.cwd() / "resources" / "notifications.txt"
+UPDATER_BACKUP = pathlib.Path.cwd() / "resources" / "updater_backup.csv"
 
 SUMMARY = 400
 SHORTCUT = 30
@@ -191,4 +194,9 @@ log.addHandler(log_handler)
 def info(s):
     log.setLevel('INFO')
     log.info(s)
+    log.setLevel('WARNING')
+
+def debug(s):
+    log.setLevel('DEBUG')
+    log.debug(s)
     log.setLevel('WARNING')
