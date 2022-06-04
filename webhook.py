@@ -43,7 +43,6 @@ class WebhookThread(threading.Thread):
             ENV = 'production',
             DEBUG = False,
             TESTING = False,
-            PROPAGATE_EXCEPTIONS = True,
             PRESERVE_CONTEXT_ON_EXCEPTION = True,
             SECRET_KEY = secrets.token_hex(),
         )
