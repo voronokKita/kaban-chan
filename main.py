@@ -11,10 +11,12 @@ Thanks to
     https://stackoverflow.com/a/70345496
     https://github.com/TelegramBotAPI/errors
     https://stackoverflow.com/a/54800683
+    https://github.com/eternnoir/pyTelegramBotAPI/issues/139
 """
 # TODO typing https://docs.python.org/3/library/typing.html | https://peps.python.org/pep-0484/ | https://peps.python.org/pep-0257/
 from kaban import helpers
 from kaban import bot_config
+from kaban import flask_config
 from kaban.settings import *
 from kaban.webhook import WebhookThread
 from kaban.updater import UpdaterThread
@@ -27,16 +29,18 @@ def main():
 
     try:
         bot = bot_config.get_bot()
+        app = flask_config.get_app()
     except Exception:
         log.exception()
         print("failed to process a bot.")
         sys.exit(1)
     else:
-        server = WebhookThread()
+        server = WebhookThread(app)
         receiver = ReceiverThread(bot)
         updater = UpdaterThread(bot)
 
     print("starting a webhook")
+    bot.remove_webhook()
     server.start()
     if READY_TO_WORK.wait(20):
         print("starting receiver & updater")
@@ -69,11 +73,16 @@ def main():
 
 
 if __name__ == '__main__':
-    if __debug__ and not REPLIT:
-        from tests import testsuite
-        testsuite.execute()
-    print('off')
-    exit()
+    #if __debug__ and not REPLIT:
+    #    from tests import testsuite
+    #    testsuite.execute()
+    """
+    bot = telebot.TeleBot(API, parse_mode=None)
+    @bot.message_handler(commands=['start', 'help'])
+    def send_welcome(message):
+        bot.reply_to(message, f"Howdy, how are you doing? {message.chat.id}")
+    bot.remove_webhook()
+    bot.infinity_polling()"""
 
     signal.signal(signal.SIGINT, helpers.exit_signal)
     signal.signal(signal.SIGTSTP, helpers.exit_signal)

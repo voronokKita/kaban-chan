@@ -102,15 +102,16 @@ EXIT_NOTE = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 
 
 # Web settings
-ADDRESS = '0.0.0.0'
 PORT = 5000
-WEBHOOK_ENDPOINT = "/inbox"
+WEBHOOK_ENDPOINT = "/hook"
 WEBHOOK_WAS_SET = re.compile(r'was set|already set')
 
 if REPLIT:
-    API = os.environ['API']
     REPLIT_URL = "https://kaban-chan.kitavoronok.repl.co"
+    ADDRESS = '0.0.0.0'
+    API = os.environ['API']
 else:
+    ADDRESS = '127.0.0.1'
     API = BASE_DIR / "resources" / ".api"
     if API.exists():
         with open(API) as f: API = f.read().strip()

@@ -14,7 +14,8 @@ class UpdaterThread(threading.Thread):
         self.bot = bot
         self.exception = None
 
-    def __repr__(self):
+    @staticmethod
+    def __repr__():
         return "updater thread"
 
     def run(self):
@@ -56,7 +57,7 @@ class UpdaterThread(threading.Thread):
         with open(NOTIFICATIONS, 'w') as f: f.write('')
         info("notifications sent out")
 
-    def _load(dict_of_posts):
+    def _load(self, dict_of_posts):
         """ Loads the posts to be sent into memory. """
         preload = {}
         self._populate_user_ids(preload)
@@ -64,12 +65,14 @@ class UpdaterThread(threading.Thread):
         self._populate_feed_posts(preload)
         self._clear_empty(preload, dict_of_posts)
 
+    @staticmethod
     def _populate_user_ids(dict_of_uids):
         """ Subfunction of _load() """
         with SQLSession(db) as session:
             for db_entry in session.scalars(session.query(FeedsDB)):
                 dict_of_uids[db_entry.uid] = {}
 
+    @staticmethod
     def _populate_user_feeds(dict_of_uids):
         """ Subfunction of _load() """
         for uid in dict_of_uids:
@@ -99,6 +102,7 @@ class UpdaterThread(threading.Thread):
                 finally:
                     dict_of_uids[uid][feed] = posts_to_send
 
+    @staticmethod
     def _populate_list_of_posts(posts_to_send, parsed_feed, uid):
         """ Subfunction of _load() """
         with SQLSession(db) as session:
@@ -124,6 +128,7 @@ class UpdaterThread(threading.Thread):
                 if title in old_posts: continue
                 else: posts_to_send.append({'title': title, 'post': post})
 
+    @staticmethod
     def _clear_empty(preload, dict_of_posts):
         """ Subfunction of _load() """
         for uid in preload:
@@ -136,7 +141,7 @@ class UpdaterThread(threading.Thread):
             for feed in dict_of_posts[uid]:
                 # The order of the posts should be reversed to keep the feed's sequence.
                 for post in reversed(dict_of_posts[uid][feed]):
-                    self._sender(self, uid, feed, post)
+                    self._sender(uid, feed, post)
 
     def _sender(self, uid:int, feed:str, post:Feed):
         """ Subfunction of _updater() """
