@@ -1,5 +1,5 @@
-from variables import *
-import helpers
+from kaban.settings import *
+from kaban import helpers
 
 
 class WebhookThread(threading.Thread):
@@ -18,14 +18,18 @@ class WebhookThread(threading.Thread):
             self.server = make_server(ADDRESS, PORT, app)
             READY_TO_WORK.set()
             self.server.serve_forever()
+
         except Exception as error:
             self.exception = error
             helpers.exit_signal()
 
     @staticmethod
     def _make_tunnel():
-        tunnel = ngrok.connect(PORT, bind_tls=True)
-        url = tunnel.public_url + WEBHOOK_ENDPOINT
+        if REPLIT:
+            url = REPLIT_URL + WEBHOOK_ENDPOINT
+        else:
+            tunnel = ngrok.connect(PORT, bind_tls=True)
+            url = tunnel.public_url + WEBHOOK_ENDPOINT
         k = [
             'curl', '--location', '--request', 'POST',
             f'https://api.telegram.org/bot{API}/setWebhook',
@@ -48,7 +52,7 @@ class WebhookThread(threading.Thread):
         )
 
         @app.route(WEBHOOK_ENDPOINT, methods=['POST'])
-        def receiver():
+        def inbox():
             """ Checks requests and passes them into the WebhookDB.
                 The db serves as a reliable request queue. """
             global BANNED
@@ -78,6 +82,10 @@ class WebhookThread(threading.Thread):
                     session.commit()
                 NEW_MESSAGES_EVENT.set()
                 return "", 200
+
+        @app.route('/ping', methods=['GET'])
+        def ping():
+            return "pong", 200
 
         return app
 

@@ -1,5 +1,5 @@
-from variables import *
-import helpers
+from kaban.settings import *
+from kaban import helpers
 
 
 class UpdaterThread(threading.Thread):

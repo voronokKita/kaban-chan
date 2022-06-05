@@ -1,10 +1,9 @@
-from variables import *
+from kaban.settings import *
 
 
 def exit_signal(signal=None, frame=None):
     """ Gentle exiting. """
-    if signal:
-        print()
+    if signal: print()
     EXIT_EVENT.set()
     NEW_MESSAGES_EVENT.set()
 
@@ -227,3 +226,9 @@ def delete_user(uid):
         result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
         for entry in session.scalars(result):
             delete_a_feed(entry.feed, uid, silent=True)
+
+
+def sum(arg):
+    total = 0
+    for val in arg: total += val
+    return total

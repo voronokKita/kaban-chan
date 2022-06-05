@@ -31,12 +31,16 @@ from sqlalchemy.orm import Session as SQLSession
 
 MASTER = "@simple_complexity"
 
+REPLIT = False
+
+BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
+
 FEEDS_UPDATE_TIMEOUT = 3600
 
 TIME_FORMAT = 'on %A, in %-d day of %B %Y, at %-H:%M %z'
 
-NOTIFICATIONS = pathlib.Path.cwd() / "resources" / "notifications.txt"
-UPDATER_BACKUP = pathlib.Path.cwd() / "resources" / "updater_backup.csv"
+NOTIFICATIONS = BASE_DIR / "resources" / "notifications.txt"
+UPDATER_BACKUP = BASE_DIR / "resources" / "updater_backup.csv"  #! TODELL
 
 SUMMARY = 400
 SHORTCUT = 30
@@ -45,7 +49,9 @@ USERS = {}
 BANNED = []
 
 class DataAlreadyExists(Exception): pass
+
 class WrongWebhookRequestError(Exception): pass
+
 class FeedLoadError(Exception): pass
 
 
@@ -104,23 +110,26 @@ EXIT_NOTE = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 
 
 # Web settings
-ADDRESS = '127.0.0.1'
+ADDRESS = '0.0.0.0'
 PORT = 5000
-WEBHOOK_ENDPOINT = "/kaban-chan"
+WEBHOOK_ENDPOINT = "/inbox"
 WEBHOOK_WAS_SET = re.compile(r'was set|already set')
 
-API = pathlib.Path.cwd() / "resources" / ".api"
-if API.exists():
-    with open(API) as f:
-        API = f.read().strip()
+if REPLIT:
+    API = os.environ['API']
+    REPLIT_URL = "https://kaban-chan.kitavoronok.repl.co"
 else:
-    API = input("Enter the bot's API key: ").strip()
+    API = BASE_DIR / "resources" / ".api"
+    if API.exists():
+        with open(API) as f: API = f.read().strip()
+    else:
+        API = input("Enter the bot's API key: ").strip()
 
 
 # Database
 POSTS_TO_STORE = 50
 
-DB_URI = pathlib.Path.cwd() / "resources" / "database.db"
+DB_URI = BASE_DIR / "resources" / "database.sqlite3"
 db = sql.create_engine(f"sqlite:///{DB_URI}", future=True)
 SQLAlchemyBase = declarative_base()
 
@@ -169,7 +178,7 @@ BOT_TIMEOUT = re.compile(r'Too many requests')
 
 
 # Logging
-LOG = pathlib.Path.cwd() / "resources" / "feedback.log"
+LOG = BASE_DIR / "resources" / "feedback.log"
 LOG_FORMAT = '- %(asctime)s %(levelname)s: %(message)s'
 LOG_DATEFMT = '%Y-%m-%d %H:%M'
 

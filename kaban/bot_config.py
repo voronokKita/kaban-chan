@@ -1,9 +1,9 @@
-from variables import *
-import helpers
+from kaban.settings import *
+from kaban import helpers
 
 
 def get_bot():
-    """ Main telebot requests processor. """
+    """ Will return main telebot requests processor. """
     bot = telebot.TeleBot(API)
 
     @bot.message_handler(commands=['start', 'restart'])
@@ -11,8 +11,7 @@ def get_bot():
         """ Will also delete any old data in order to work as a restart function. """
         uid = message.chat.id
         global USERS
-        if USERS.get(uid):
-            USERS.pop(uid)
+        if USERS.get(uid): USERS.pop(uid)
         helpers.delete_user(uid)
 
         helpers.send_message(bot, uid, f"Hello, @{message.chat.username}!")

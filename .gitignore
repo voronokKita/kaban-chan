@@ -3,7 +3,7 @@
 
 resources/
 .api
-database.db
+database.sqlite3
 feedback.log
 messages_socket
 Pipfile.lock

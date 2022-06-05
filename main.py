@@ -12,12 +12,12 @@ Thanks to
     https://github.com/TelegramBotAPI/errors
     https://stackoverflow.com/a/54800683
 """
-import helpers
-import bot_config
-from variables import *
-from webhook import WebhookThread
-from updater import UpdaterThread
-from receiver import ReceiverThread
+from kaban import helpers
+from kaban import bot_config
+from kaban.settings import *
+from kaban.webhook import WebhookThread
+from kaban.updater import UpdaterThread
+from kaban.receiver import ReceiverThread
 
 
 def main():
@@ -68,6 +68,12 @@ def main():
 
 
 if __name__ == '__main__':
+    if __debug__ and not REPLIT:
+        from tests import testsuite
+        testsuite.execute()
+    print('off')
+    exit()
+
     signal.signal(signal.SIGINT, helpers.exit_signal)
     signal.signal(signal.SIGTSTP, helpers.exit_signal)
     if not DB_URI.exists():
