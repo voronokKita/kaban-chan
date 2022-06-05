@@ -1,6 +1,5 @@
 from datetime import datetime
 from collections import defaultdict
-import csv
 import hashlib
 import logging
 import os
@@ -40,19 +39,12 @@ FEEDS_UPDATE_TIMEOUT = 3600
 TIME_FORMAT = 'on %A, in %-d day of %B %Y, at %-H:%M %z'
 
 NOTIFICATIONS = BASE_DIR / "resources" / "notifications.txt"
-UPDATER_BACKUP = BASE_DIR / "resources" / "updater_backup.csv"  #! TODELL
 
 SUMMARY = 400
 SHORTCUT = 30
 
 USERS = {}
 BANNED = []
-
-class DataAlreadyExists(Exception): pass
-
-class WrongWebhookRequestError(Exception): pass
-
-class FeedLoadError(Exception): pass
 
 
 READY_TO_WORK = threading.Event()
@@ -209,3 +201,14 @@ def debug(s):
     log.setLevel('DEBUG')
     log.debug(s)
     log.setLevel('WARNING')
+
+
+# Classes
+
+Feed = feedparser.util.FeedParserDict
+
+class DataAlreadyExists(Exception): pass
+
+class WrongWebhookRequestError(Exception): pass
+
+class FeedLoadError(Exception): pass

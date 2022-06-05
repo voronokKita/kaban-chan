@@ -58,7 +58,7 @@ def send_message(bot, uid, text):
         break
 
 
-def send_a_post(bot, post, db_entry, feed):
+def send_a_post(bot, post:Feed, db_entry, feed:str):
     """ Makes a post from some feed and sends it to a uid. """
     text = ""
     if db_entry.short: text += f"{db_entry.short}: "
@@ -108,7 +108,7 @@ def check_out_feed(feed, uid, first_time=True):
             raise DataAlreadyExists
 
 
-def add_new_feed(bot, uid, feed):
+def add_new_feed(bot, uid:int, feed:str) -> str:
     """ Inserts a new entry into the feeds db. """
     with SQLSession(db) as session:
         new_entry = FeedsDB(uid=uid, feed=feed)

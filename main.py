@@ -12,6 +12,7 @@ Thanks to
     https://github.com/TelegramBotAPI/errors
     https://stackoverflow.com/a/54800683
 """
+# TODO typing https://docs.python.org/3/library/typing.html | https://peps.python.org/pep-0484/ | https://peps.python.org/pep-0257/
 from kaban import helpers
 from kaban import bot_config
 from kaban.settings import *
