@@ -1,5 +1,4 @@
 from datetime import datetime
-from collections import defaultdict
 import hashlib
 import logging
 import os
@@ -103,15 +102,14 @@ EXIT_NOTE = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 
 # Web settings
 PORT = 5000
+ADDRESS = '0.0.0.0'
 WEBHOOK_ENDPOINT = "/hook"
 WEBHOOK_WAS_SET = re.compile(r'was set|already set')
 
 if REPLIT:
     REPLIT_URL = "https://kaban-chan.kitavoronok.repl.co"
-    ADDRESS = '0.0.0.0'
     API = os.environ['API']
 else:
-    ADDRESS = '127.0.0.1'
     API = BASE_DIR / "resources" / ".api"
     if API.exists():
         with open(API) as f: API = f.read().strip()
@@ -213,3 +211,5 @@ class DataAlreadyExists(Exception): pass
 class WrongWebhookRequestError(Exception): pass
 
 class FeedLoadError(Exception): pass
+
+class FeedFormatError(Exception): pass

@@ -48,7 +48,10 @@ def get_bot():
                 helpers.check_out_feed(feed, uid)
             except DataAlreadyExists:
                 text = "I already watch this feed for you!"
+            except FeedFormatError:
+                text = "Invalid feed's format, I can't add this feed."
             except Exception:
+                info(f'error parsing feed {feed}')
                 text = "Can't read the feed. Check for errors or try again later."
             else:
                 text = f"All is fine — I managed to read the feed! " \

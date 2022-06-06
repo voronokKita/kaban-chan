@@ -15,7 +15,6 @@ def get_app():
     def inbox():
         """ Checks requests and passes them into the WebhookDB.
             The db serves as a reliable request queue. """
-        print("!!")
         global BANNED
         ip = request.environ.get('REMOTE_ADDR')
         if ip in BANNED:

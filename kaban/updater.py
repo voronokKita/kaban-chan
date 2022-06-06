@@ -59,11 +59,9 @@ class UpdaterThread(threading.Thread):
 
     def _load(self, dict_of_posts):
         """ Loads the posts to be sent into memory. """
-        preload = {}
-        self._populate_user_ids(preload)
-        self._populate_user_feeds(preload)
-        self._populate_feed_posts(preload)
-        self._clear_empty(preload, dict_of_posts)
+        self._populate_user_ids(dict_of_posts)
+        self._populate_user_feeds(dict_of_posts)
+        self._populate_feed_posts(dict_of_posts)
 
     @staticmethod
     def _populate_user_ids(dict_of_uids):
@@ -128,22 +126,14 @@ class UpdaterThread(threading.Thread):
                 if title in old_posts: continue
                 else: posts_to_send.append({'title': title, 'post': post})
 
-    @staticmethod
-    def _clear_empty(preload, dict_of_posts):
-        """ Subfunction of _load() """
-        for uid in preload:
-            for feed in preload[uid]:
-                if preload[uid][feed]:
-                    dict_of_posts[uid][feed] = preload[uid][feed]
-
     def _updater(self, dict_of_posts):
         for uid in dict_of_posts:
             for feed in dict_of_posts[uid]:
-                # The order of the posts should be reversed to keep the feed's sequence.
+                # The order of the posts should be reversed to keep the feed's original sequence.
                 for post in reversed(dict_of_posts[uid][feed]):
                     self._sender(uid, feed, post)
 
-    def _sender(self, uid:int, feed:str, post:Feed):
+    def _sender(self, uid:int, feed:str, post:dict):
         """ Subfunction of _updater() """
         with SQLSession(db) as session:
             db_entry = session.query(FeedsDB).filter(
@@ -152,10 +142,10 @@ class UpdaterThread(threading.Thread):
             ).first()
 
             published = datetime.fromtimestamp(
-                time.mktime(post.published_parsed)
+                time.mktime(post['post'].published_parsed)
             )
             old_posts = db_entry.last_posts.split(' /// ')
-            l = post['title'] + old_posts
+            l = [post['title']] + old_posts
             new_posts = ' /// '.join(l[:POSTS_TO_STORE])
 
             helpers.send_a_post(self.bot, post['post'], db_entry, feed)

@@ -89,16 +89,17 @@ def send_a_post(bot, post:Feed, db_entry, feed:str):
     send_message(bot, db_entry.uid, text)
 
 
-def check_out_feed(feed, uid, first_time=True):
-    """ Raises an exception if this uid has already added this feed. """
+def check_out_feed(feed:str, uid:int, first_time=True):
+    """ Raises an exception if this user has already added this feed.
+        Checks feed's availability and format. """
     if first_time:
         try:
-            f = feedparser.parse(feed)
-            p = f.entries[0]
-            if not f.href or not p.published_parsed or not p.title:
-                raise Exception
-        except Exception:
-            raise Exception
+            parsed_feed = feedparser.parse(feed)
+            post = parsed_feed.entries[0]
+            if not parsed_feed.href or not post.published_parsed or not post.title:
+                raise FeedFormatError
+        except Exception as exc:
+            raise Exception from exc
 
     with SQLSession(db) as session:
         db_entry = session.query(FeedsDB).filter(
