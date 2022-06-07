@@ -1,3 +1,7 @@
+import time
+
+import telebot
+
 from kaban.settings import *
 from kaban import helpers
 
@@ -10,13 +14,12 @@ def get_bot():
     def hello(message):
         """ Will also delete any old data in order to work as a restart function. """
         uid = message.chat.id
-        global USERS
         if USERS.get(uid): USERS.pop(uid)
         helpers.delete_user(uid)
 
         helpers.send_message(bot, uid, f"Hello, @{message.chat.username}!")
         time.sleep(1)
-        text = f"Use {COMMAND_ADD} command. I will check your web feed from time to time " \
+        text = f"Use {CMD_ADD} command. I will check your web feed from time to time " \
                "and notify when something new comes up~\n\n" \
                "ⓘ The server may be slow so don't rush to use commands again " \
                "if there is no immediate response. (´･ᴗ･ ` )"
@@ -26,19 +29,17 @@ def get_bot():
     def help(message):
         helpers.send_message(bot, message.chat.id, HELP)
 
-    @bot.message_handler(commands=[KEY_ADD, KEY_INSERT, KEY_CANCEL])
+    @bot.message_handler(commands=[ADD_FEED, INSERT_FEED, GO_BACK])
     def add_new_feed(message, check_out=False):
-        """ Handles the insertion of new entries into the feeds db. """
-        text = ""
+        """ Handles the insertion of new entries into the FeedsDB. """
         uid = message.chat.id
-        global USERS
         USERS.setdefault(uid, {'AWAITING_FEED': False, 'POTENTIAL_FEED': None})
 
-        if not USERS[uid]['AWAITING_FEED'] and message.text == COMMAND_ADD:
+        if not USERS[uid]['AWAITING_FEED'] and message.text == CMD_ADD:
             text = "Send me a URI of your web feed. I'll check it out."
             USERS[uid]['AWAITING_FEED'] = True
 
-        elif message.text == COMMAND_CANCEL:
+        elif message.text == CMD_CANCEL:
             text = "Cancelled~"
             USERS.pop(uid)
 
@@ -50,45 +51,43 @@ def get_bot():
                 text = "I already watch this feed for you!"
             except FeedFormatError:
                 text = "Invalid feed's format, I can't add this feed."
-            except Exception:
-                info(f'error parsing feed {feed}')
+            except Exception as exc:
+                info(f'error parsing feed {feed}, {exc}')
                 text = "Can't read the feed. Check for errors or try again later."
             else:
                 text = f"All is fine — I managed to read the feed! " \
-                       f"Use the {COMMAND_INSERT} command to complete."
+                       f"Use the {CMD_INSERT} command to complete."
                 USERS[uid]['POTENTIAL_FEED'] = feed
 
         elif USERS[uid]['AWAITING_FEED'] and \
                 USERS[uid]['POTENTIAL_FEED'] and \
-                message.text == COMMAND_INSERT:
-
+                message.text == CMD_INSERT:
             feed = USERS[uid]['POTENTIAL_FEED']
             text = helpers.add_new_feed(bot, uid, feed)
-            time.sleep(1)
+            time.sleep(0.1)
             USERS.pop(uid)
 
-        elif message.text == COMMAND_INSERT:
-            text = f"Use {COMMAND_ADD} command first."
+        elif message.text == CMD_INSERT:
+            text = f"Use {CMD_ADD} command first."
 
         else:
-            text = f"You can use {COMMAND_CANCEL} to go back."
+            text = f"You can use {CMD_CANCEL} to go back."
 
         helpers.send_message(bot, uid, text)
 
-    @bot.message_handler(commands=[KEY_LIST, KEY_DELETE, KEY_SHORTCUT])
+    @bot.message_handler(commands=[LIST_FEEDS, DELETE_FEED, ADD_SHORTCUT])
     def list_user_feeds(message):
         """ Sends the list of feeds associated with the id.
             Handles the deletion of feeds.
-            Handles shortcuts. """
+            Handle shortcuts. """
         text = ""
         message_text = message.text.strip()
         uid = message.chat.id
-        global USERS
 
         if USERS.get(uid):
             add_new_feed(message)
 
-        elif message_text == COMMAND_LIST:
+        elif message_text == CMD_LIST:
             text = helpers.list_user_feeds(uid)
 
         elif PATTERN_DELETE.fullmatch(message_text):
@@ -100,10 +99,10 @@ def get_bot():
             feed = parts[0][1].strip()
             shortcut = parts[0][2]
             try:
-                if len(shortcut) > SHORTCUT: raise IndexError
+                if len(shortcut) > SHORTCUT_LEN: raise IndexError
                 helpers.check_out_feed(feed, uid, first_time=False)
             except IndexError:
-                text = f"The maximum length is {SHORTCUT} characters."
+                text = f"The maximum length is {SHORTCUT_LEN} characters."
             except DataAlreadyExists:
                 text = helpers.feed_shortcut(uid, shortcut, feed)
             else:
@@ -114,13 +113,12 @@ def get_bot():
 
         if text: helpers.send_message(bot, uid, text)
 
-    @bot.message_handler(commands=[KEY_SW_SUMMARY, KEY_SW_DATE, KEY_SW_LINK])
+    @bot.message_handler(commands=[SWITCH_SUMMARY, SWITCH_DATE, SWITCH_LINK])
     def switch(message):
-        """ Posts style options. """
+        """ Style options. """
         text = ""
         message_text = message.text.strip()
         uid = message.chat.id
-        global USERS
 
         if USERS.get(uid):
             add_new_feed(message)
@@ -128,7 +126,6 @@ def get_bot():
         elif PATTERN_SUMMARY.fullmatch(message_text) or \
                 PATTERN_DATE.fullmatch(message_text) or \
                 PATTERN_LINK.fullmatch(message_text):
-
             parts = PATTERN_COMMAND.findall(message_text)
             feed = parts[0][1]
             command = parts[0][0].strip()
@@ -149,7 +146,6 @@ def get_bot():
     def get_text_data(message):
         """ Process text messages. """
         uid = message.chat.id
-        global USERS
         if USERS.get(uid) and USERS[uid]['AWAITING_FEED']:
             add_new_feed(message, check_out=True)
         else:

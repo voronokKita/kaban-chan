@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-v1 April of 2022
+v1 April 2022
 v2 May
 
 Thanks to
@@ -13,7 +13,10 @@ Thanks to
     https://stackoverflow.com/a/54800683
     https://github.com/eternnoir/pyTelegramBotAPI/issues/139
 """
-# TODO typing https://docs.python.org/3/library/typing.html | https://peps.python.org/pep-0484/ | https://peps.python.org/pep-0257/
+import signal
+import sys
+import time
+
 from kaban import helpers
 from kaban import bot_config
 from kaban import flask_config
@@ -28,25 +31,27 @@ def main():
     time.sleep(0.2)
 
     try:
-        bot = bot_config.get_bot()
-        app = flask_config.get_app()
-    except Exception:
-        log.exception()
-        print("failed to process a bot.")
+        server = WebhookThread(flask_config.get_app())
+        receiver = ReceiverThread(bot_config.get_bot())
+        updater = UpdaterThread(bot_config.get_bot())
+    except Exception as exc:
+        log.exception(exc)
+        print("failed to load telebot & flask.")
         sys.exit(1)
-    else:
-        server = WebhookThread(app)
-        receiver = ReceiverThread(bot)
-        updater = UpdaterThread(bot)
 
     print("starting a webhook")
-    bot.remove_webhook()
     server.start()
-    if READY_TO_WORK.wait(20):
-        print("starting receiver & updater")
+    if HOOK_READY_TO_WORK.wait(20):
+        time.sleep(0.5)
+
+        print("starting a receiver")
         receiver.start()
+        time.sleep(0.5)
+
+        print("starting an updater")
         updater.start()
         time.sleep(1)
+
         info(">>> up & running >>>")
         print("All work has started (´｡• ω •｡`)")
     else:
@@ -60,10 +65,10 @@ def main():
     errors = False
     for thread in [server, receiver, updater]:
         try:
-            thread.join()
+            thread.stop()
             print(f"{thread} stopped")
-        except Exception:
-            log.exception(thread)
+        except Exception as exc:
+            log.exception(exc)
             print(f"error in {thread}")
             errors = True
 
@@ -73,16 +78,10 @@ def main():
 
 
 if __name__ == '__main__':
-    #if __debug__ and not REPLIT:
-    #    from tests import testsuite
-    #    testsuite.execute()
-    """
-    bot = telebot.TeleBot(API, parse_mode=None)
-    @bot.message_handler(commands=['start', 'help'])
-    def send_welcome(message):
-        bot.reply_to(message, f"Howdy, how are you doing? {message.chat.id}")
-    bot.remove_webhook()
-    bot.infinity_polling()"""
+    if __debug__ and not REPLIT:
+        from tests import testsuite
+        testsuite.execute()
+        exit()
 
     signal.signal(signal.SIGINT, helpers.exit_signal)
     signal.signal(signal.SIGTSTP, helpers.exit_signal)

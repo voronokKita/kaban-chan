@@ -1,9 +1,17 @@
+from datetime import datetime
+import hashlib
+import threading
+import time
+
+import feedparser
+from sqlalchemy.orm import Session as SQLSession
+
 from kaban.settings import *
 from kaban import helpers
 
 
 class UpdaterThread(threading.Thread):
-    """ Note:
+    """ Note
     A web feed doesn't guarantee a strict sequence and order.
     Many of them update a post's publication date each time they update the post's text,
     causing all posts to reorder unpredictably.
@@ -11,12 +19,20 @@ class UpdaterThread(threading.Thread):
     """
     def __init__(self, bot):
         threading.Thread.__init__(self)
+
         self.bot = bot
         self.exception = None
 
-    @staticmethod
-    def __repr__():
-        return "updater thread"
+        self.exit = helpers.exit_signal
+        self.send_message = helpers.send_message
+        self.send_a_post = helpers.send_a_post
+
+        self.exit_event = EXIT_EVENT
+        self.timeout = FEEDS_UPDATE_TIMEOUT
+        self.posts_to_store = POSTS_TO_STORE
+        self.notifications = NOTIFICATIONS
+
+    def __str__(self): return "updater thread"
 
     def run(self):
         """ Checks feeds for updates from time to time. """
@@ -24,70 +40,71 @@ class UpdaterThread(threading.Thread):
             self._notifications()
 
             while True:
-                dict_of_posts = {}
-                self._load(dict_of_posts)
-                if dict_of_posts:
-                    self._updater(dict_of_posts)
-                del dict_of_posts
+                new_posts: UpdPosts = {}
+                self._load(new_posts)
 
-                if EXIT_EVENT.wait(FEEDS_UPDATE_TIMEOUT):
+                self._forward(new_posts)
+
+                del new_posts
+
+                if self.exit_event.wait(self.timeout):
                     break
 
         except Exception as error:
             self.exception = error
-            helpers.exit_signal()
+            self.exit()
 
     def _notifications(self):
         """ Sends messages to users from a file.
             Messages must be separated by >>> """
         messages = []
-        if NOTIFICATIONS.exists():
-            with open(NOTIFICATIONS, 'r', encoding='utf-8') as file:
+        if self.notifications.exists():
+            with open(self.notifications, 'r', encoding='utf-8') as file:
                 text = file.read()
                 messages = [m.strip() for m in text.split('>>>') if m.strip()]
 
         if not messages: return
 
         with SQLSession(db) as session:
-            query = session.query(FeedsDB.uid).distinct()
-            for uid in session.scalars(query):
+            uids = session.query(FeedsDB.uid).distinct()
+            for uid in session.scalars(uids):
                 for m in messages:
-                    helpers.send_message(self.bot, uid, m)
+                    self.send_message(self.bot, uid, m)
 
-        with open(NOTIFICATIONS, 'w') as f: f.write('')
+        with open(self.notifications, 'w') as f: f.write('')
         info("notifications sent out")
 
-    def _load(self, dict_of_posts):
-        """ Loads the posts to be sent into memory. """
-        self._populate_user_ids(dict_of_posts)
-        self._populate_user_feeds(dict_of_posts)
-        self._populate_feed_posts(dict_of_posts)
+    def _load(self, new_posts: UpdPosts):
+        """ Loads new posts from all feeds into memory. """
+        self._populate_user_ids(new_posts)
+        self._populate_user_feeds(new_posts)
+        self._populate_feed_posts(new_posts)
 
     @staticmethod
-    def _populate_user_ids(dict_of_uids):
-        """ Subfunction of _load() """
+    def _populate_user_ids(new_posts: UpdPosts):
+        """ Subfunction of _load(), loads all uids. """
         with SQLSession(db) as session:
             for db_entry in session.scalars(session.query(FeedsDB)):
-                dict_of_uids[db_entry.uid] = {}
+                new_posts[db_entry.uid] = {}
 
     @staticmethod
-    def _populate_user_feeds(dict_of_uids):
-        """ Subfunction of _load() """
-        for uid in dict_of_uids:
-            dict_of_feeds = {}
+    def _populate_user_feeds(new_posts: UpdPosts):
+        """ Subfunction of _load(), loads all feeds. """
+        for uid in new_posts:
+            dict_of_feeds: UpdFeeds = {}
             with SQLSession(db) as session:
                 entries = session.query(FeedsDB).filter(FeedsDB.uid == uid)
                 for db_entry in session.scalars(entries):
                     dict_of_feeds[db_entry.feed] = []
-                dict_of_uids[uid] = dict_of_feeds
+            new_posts[uid] = dict_of_feeds
 
-    def _populate_feed_posts(self, dict_of_uids):
-        """ Subfunction of _load() """
-        for uid in dict_of_uids:
-            for feed in dict_of_uids[uid]:
-                posts_to_send = []
+    def _populate_feed_posts(self, new_posts: UpdPosts):
+        """ Subfunction of _load(), loads lists of new posts. """
+        for uid in new_posts:
+            for feed in new_posts[uid]:
+                posts_to_send: UpdPostList = []
                 try:
-                    parsed_feed = feedparser.parse(feed)
+                    parsed_feed: Feed = feedparser.parse(feed)
                     if not parsed_feed.entries or not parsed_feed.entries[0].title:
                         raise FeedLoadError(feed)
 
@@ -98,21 +115,21 @@ class UpdaterThread(threading.Thread):
                 except Exception as error:
                     log.warning(f'feedparser fail - {error}')
                 finally:
-                    dict_of_uids[uid][feed] = posts_to_send
+                    new_posts[uid][feed] = posts_to_send
 
     @staticmethod
-    def _populate_list_of_posts(posts_to_send, parsed_feed, uid):
-        """ Subfunction of _load() """
+    def _populate_list_of_posts(posts_to_send: UpdPostList, feed: Feed, uid: int):
+        """ Subfunction of _load(), loads new posts from a feed. """
         with SQLSession(db) as session:
             db_entry = session.query(FeedsDB).filter(
                 FeedsDB.uid == uid,
-                FeedsDB.feed == parsed_feed.href
+                FeedsDB.feed == feed.href
             ).first()
 
             old_posts = set(db_entry.last_posts.split(' /// '))
             feed_last_check = db_entry.last_check
 
-        for post in parsed_feed.entries:
+        for post in feed.entries:
             published = datetime.fromtimestamp(
                 time.mktime(post.published_parsed)
             )
@@ -124,17 +141,23 @@ class UpdaterThread(threading.Thread):
                 ).hexdigest()
 
                 if title in old_posts: continue
-                else: posts_to_send.append({'title': title, 'post': post})
+                else:
+                    new_post: UpdPost = {'title': title, 'post': post}
+                    posts_to_send.append(new_post)
 
-    def _updater(self, dict_of_posts):
-        for uid in dict_of_posts:
-            for feed in dict_of_posts[uid]:
-                # The order of the posts should be reversed to keep the feed's original sequence.
-                for post in reversed(dict_of_posts[uid][feed]):
-                    self._sender(uid, feed, post)
+    def _forward(self, new_posts: UpdPosts):
+        """ Organizes new posts mailing in order.
+            The order of the posts should be reversed
+            to keep feed's original sequence."""
+        for uid in new_posts:
+            for feed in new_posts[uid]:
+                for post in reversed(new_posts[uid][feed]):
+                    self._updater(uid, feed, post)
 
-    def _sender(self, uid:int, feed:str, post:dict):
-        """ Subfunction of _updater() """
+    def _updater(self, uid: int, feed: str, post: UpdPost):
+        """ A bottom function.
+            Forwards a post to the post sender function.
+            Save changes to the database. """
         with SQLSession(db) as session:
             db_entry = session.query(FeedsDB).filter(
                 FeedsDB.uid == uid,
@@ -146,15 +169,15 @@ class UpdaterThread(threading.Thread):
             )
             old_posts = db_entry.last_posts.split(' /// ')
             l = [post['title']] + old_posts
-            new_posts = ' /// '.join(l[:POSTS_TO_STORE])
+            new_last_posts = ' /// '.join(l[:self.posts_to_store])
 
-            helpers.send_a_post(self.bot, post['post'], db_entry, feed)
+            self.send_a_post(self.bot, post['post'], db_entry, feed)
 
-            db_entry.last_posts = new_posts
+            db_entry.last_posts = new_last_posts
             db_entry.last_check = published
             session.commit()
 
-    def join(self):
+    def stop(self):
         threading.Thread.join(self)
         if self.exception:
             raise self.exception

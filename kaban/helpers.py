@@ -1,26 +1,38 @@
+from datetime import datetime
+import hashlib
+import time
+
+import feedparser
+from bs4 import BeautifulSoup
+from telebot.apihelper import ApiTelegramException
+from sqlalchemy.orm import Session as SQLSession
+
 from kaban.settings import *
 
 
-def exit_signal(signal=None, frame=None):
+def exit_signal(signal_=None, frame=None):
     """ Gentle exiting. """
-    if signal: print()
+    if signal_: print()
     EXIT_EVENT.set()
     NEW_MESSAGES_EVENT.set()
 
 
-def send_message(bot, uid, text):
-    """ Handles errors in requests to Telegram. """
-    def resend_message(retry, sleep, delete=False):
-        if retry == 0:
-            if delete: delete_user(args[1])
+def send_message(bot, uid: int, text: str):
+    """ Final point. Handles errors in requests to Telegram. """
+
+    def resend_message(attempt: int, sleep: int, delete=False) -> bool:
+        """ Will try to send message again [attempt] times after [sleep].
+            Request to delete user if needed. """
+        if attempt == 0:
+            if delete: delete_user(uid)
             else: pass
             return False
         else:
             time.sleep(sleep)
             return True
 
+    retry = None
     while True:
-        retry = None
         try:
             bot.send_message(uid, text)
 
@@ -49,30 +61,31 @@ def send_message(bot, uid, text):
                 if resend_message(retry, sleep=2): continue
                 else: log.exception('undefined telegram problem')
 
-        except Exception as error:
+        except Exception as exc:
             retry = 1 if retry is None else retry - 1
             if resend_message(retry, sleep=5): continue
-            else: log.exception('request')
+            else: log.exception(exc)
 
         time.sleep(0.1)
         break
 
 
-def send_a_post(bot, post:Feed, db_entry, feed:str):
+def send_a_post(bot, post: Feed, db_entry, feed: str):
     """ Makes a post from some feed and sends it to a uid. """
     text = ""
-    if db_entry.short: text += f"{db_entry.short}: "
+    if db_entry.short:
+        text += f"{db_entry.short}: "
 
     text += post.title + "\n"
 
     if db_entry.summary:
         try:
             soup = BeautifulSoup(post.summary, features='html.parser')
-            s = soup.text[:SUMMARY].strip()
-            s += "..." if len(soup.text) > SUMMARY else ""
+            s = soup.text[:FEED_SUMMARY_LEN].strip()
+            s += "..." if len(soup.text) > FEED_SUMMARY_LEN else ""
             text += "\n" + s + "\n"
-        except Exception:
-            feed_switcher(db_entry.uid, COMMAND_SW_SUMMARY, feed)
+        except AttributeError:
+            feed_switcher(db_entry.uid, CMD_SUMMARY, feed)
 
     if db_entry.date:
         published = datetime.fromtimestamp(
@@ -83,15 +96,15 @@ def send_a_post(bot, post:Feed, db_entry, feed:str):
     if db_entry.link:
         try:
             text += post.link + "\n"
-        except Exception:
-            feed_switcher(db_entry.uid, COMMAND_SW_LINK, feed)
+        except AttributeError:
+            feed_switcher(db_entry.uid, CMD_LINK, feed)
 
     send_message(bot, db_entry.uid, text)
 
 
-def check_out_feed(feed:str, uid:int, first_time=True):
+def check_out_feed(feed: str, uid: int, first_time=True):
     """ Raises an exception if this user has already added this feed.
-        Checks feed's availability and format. """
+        Checks feed's availability and format correctness. """
     if first_time:
         try:
             parsed_feed = feedparser.parse(feed)
@@ -109,24 +122,25 @@ def check_out_feed(feed:str, uid:int, first_time=True):
             raise DataAlreadyExists
 
 
-def add_new_feed(bot, uid:int, feed:str) -> str:
-    """ Inserts a new entry into the feeds db. """
+def add_new_feed(bot, uid: int, feed: str) -> str:
+    """ Inserts a new entry into the FeedsDB. """
     with SQLSession(db) as session:
         new_entry = FeedsDB(uid=uid, feed=feed)
         session.add(new_entry)
         session.commit()
-    info('db - a new entry')
+        info('db - a new entry')
     try:
         new_feed_preprocess(bot, uid, feed)
-    except Exception:
+    except FeedPreprocessError:
         return "A new web feed has been added, but some issues have arisen with reading it. " \
                "The feed will be automatically deleted if problems continue."
     else:
         return "New web feed added!"
 
 
-def new_feed_preprocess(bot, uid, feed):
-    """ Sends the top post from a newly added feed to the uid. """
+def new_feed_preprocess(bot, uid: int, feed: str):
+    """ Sends the top post from a newly added feed to the uid.
+        Save changes to the database. """
     try:
         with SQLSession(db) as session:
             db_entry = session.query(FeedsDB).filter(
@@ -146,12 +160,12 @@ def new_feed_preprocess(bot, uid, feed):
             db_entry.last_posts = title
             db_entry.last_check = top_post_date
             session.commit()
-    except Exception as error:
+    except Exception:
         log.exception("a new feed preprocess failed")
-        raise error
+        raise FeedPreprocessError
 
 
-def delete_a_feed(feed, uid, silent=False):
+def delete_a_feed(feed: str, uid: int, silent=False) -> str:
     """ Delete some entry from the feeds db. """
     with SQLSession(db) as session:
         db_entry = session.query(FeedsDB).filter(
@@ -169,8 +183,8 @@ def delete_a_feed(feed, uid, silent=False):
         return text
 
 
-def list_user_feeds(uid):
-    """ Loads & returns list of feeds associated with some id. """
+def list_user_feeds(uid: int) -> str:
+    """ Loads & returns list of feeds associated with some uid. """
     list_of_feeds = ""
     with SQLSession(db) as session:
         feeds = session.query(FeedsDB).filter(FeedsDB.uid == uid)
@@ -187,7 +201,7 @@ def list_user_feeds(uid):
     return list_of_feeds if list_of_feeds else "There is none!"
 
 
-def feed_shortcut(uid, shortcut, feed):
+def feed_shortcut(uid: int, shortcut: str, feed: str) -> str:
     """ Assign shortcut to a feed. """
     shortcut = None if len(shortcut) == 0 else shortcut
     try:
@@ -198,30 +212,30 @@ def feed_shortcut(uid, shortcut, feed):
             ).first()
             db_entry.short = shortcut
             session.commit()
-    except Exception:
-        log.exception('def feed_shortcut')
+    except Exception as exc:
+        log.exception(exc)
         return "Undefined error."
     else:
         return "Done."
 
 
-def feed_switcher(uid, command, feed):
+def feed_switcher(uid: int, command, feed: str):  # TODO
     """ Changes post style. """
     with SQLSession(db) as session:
         db_entry = session.query(FeedsDB).filter(
             FeedsDB.uid == uid,
             FeedsDB.feed == feed,
         ).first()
-        if command == COMMAND_SW_SUMMARY:
+        if command == CMD_SUMMARY:
             db_entry.summary = not db_entry.summary
-        elif command == COMMAND_SW_DATE:
+        elif command == CMD_DATE:
             db_entry.date = not db_entry.date
-        elif command == COMMAND_SW_LINK:
+        elif command == CMD_LINK:
             db_entry.link = not db_entry.link
         session.commit()
 
 
-def delete_user(uid):
+def delete_user(uid: int):
     """ Takes all the feeds associated with some id and requests deletion. """
     with SQLSession(db) as session:
         result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
@@ -230,6 +244,7 @@ def delete_user(uid):
 
 
 def sum(arg):
+    " junk "
     total = 0
     for val in arg: total += val
     return total
