@@ -1,5 +1,10 @@
+import sys
+import pathlib
 import unittest
-#! TODO import
+
+BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
+
 from tests.units import test_helpers
 
 

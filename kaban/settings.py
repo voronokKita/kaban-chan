@@ -139,7 +139,7 @@ else:
     if API.exists():
         with open(API) as f: API = f.read().strip()
     else:
-        API = input("Enter the bot's API key: ").strip()
+        API = input("Enter the bot API key: ").strip()
 
 
 # Database
