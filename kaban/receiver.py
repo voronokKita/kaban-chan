@@ -1,5 +1,4 @@
 import telebot
-from sqlalchemy.orm import Session as SQLSession
 
 from kaban.settings import *
 from kaban import helpers
@@ -38,7 +37,7 @@ class ReceiverThread(threading.Thread):
     def _handler(self):
         """ Loads messages from the WebhookDB and passes them to the telebot processor. """
         data = None
-        with SQLSession(db) as session:
+        with SQLSession() as session:
             message = session.query(WebhookDB).first()
             if message:
                 data = message.data

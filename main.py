@@ -85,6 +85,4 @@ if __name__ == '__main__':
 
     signal.signal(signal.SIGINT, helpers.exit_signal)
     signal.signal(signal.SIGTSTP, helpers.exit_signal)
-    if not DB_URI.exists():
-        SQLAlchemyBase.metadata.create_all(db)
     main()

@@ -5,7 +5,6 @@ import time
 import feedparser
 from bs4 import BeautifulSoup
 from telebot.apihelper import ApiTelegramException
-from sqlalchemy.orm import Session as SQLSession
 
 from kaban.settings import *
 
@@ -114,7 +113,7 @@ def check_out_feed(feed: str, uid: int, first_time=True):
         except Exception as exc:
             raise Exception from exc
 
-    with SQLSession(db) as session:
+    with SQLSession() as session:
         db_entry = session.query(FeedsDB).filter(
             FeedsDB.uid == uid, FeedsDB.feed == feed
         ).first()
@@ -124,7 +123,7 @@ def check_out_feed(feed: str, uid: int, first_time=True):
 
 def add_new_feed(bot, uid: int, feed: str) -> str:
     """ Inserts a new entry into the FeedsDB. """
-    with SQLSession(db) as session:
+    with SQLSession() as session:
         new_entry = FeedsDB(uid=uid, feed=feed)
         session.add(new_entry)
         session.commit()
@@ -142,7 +141,7 @@ def new_feed_preprocess(bot, uid: int, feed: str):
     """ Sends the top post from a newly added feed to the uid.
         Save changes to the database. """
     try:
-        with SQLSession(db) as session:
+        with SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(
                 FeedsDB.uid == uid,
                 FeedsDB.feed == feed,
@@ -167,7 +166,7 @@ def new_feed_preprocess(bot, uid: int, feed: str):
 
 def delete_a_feed(feed: str, uid: int, silent=False) -> str:
     """ Delete some entry from the feeds db. """
-    with SQLSession(db) as session:
+    with SQLSession() as session:
         db_entry = session.query(FeedsDB).filter(
             FeedsDB.uid == uid, FeedsDB.feed == feed
         ).first()
@@ -186,7 +185,7 @@ def delete_a_feed(feed: str, uid: int, silent=False) -> str:
 def list_user_feeds(uid: int) -> str:
     """ Loads & returns list of feeds associated with some uid. """
     list_of_feeds = ""
-    with SQLSession(db) as session:
+    with SQLSession() as session:
         feeds = session.query(FeedsDB).filter(FeedsDB.uid == uid)
         for i, entry in enumerate(session.scalars(feeds), 1):
 
@@ -205,7 +204,7 @@ def feed_shortcut(uid: int, shortcut: str, feed: str) -> str:
     """ Assign shortcut to a feed. """
     shortcut = None if len(shortcut) == 0 else shortcut
     try:
-        with SQLSession(db) as session:
+        with SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(
                 FeedsDB.uid == uid,
                 FeedsDB.feed == feed,
@@ -221,7 +220,7 @@ def feed_shortcut(uid: int, shortcut: str, feed: str) -> str:
 
 def feed_switcher(uid: int, command, feed: str):  # TODO
     """ Changes post style. """
-    with SQLSession(db) as session:
+    with SQLSession() as session:
         db_entry = session.query(FeedsDB).filter(
             FeedsDB.uid == uid,
             FeedsDB.feed == feed,
@@ -237,7 +236,7 @@ def feed_switcher(uid: int, command, feed: str):  # TODO
 
 def delete_user(uid: int):
     """ Takes all the feeds associated with some id and requests deletion. """
-    with SQLSession(db) as session:
+    with SQLSession() as session:
         result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
         for entry in session.scalars(result):
             delete_a_feed(entry.feed, uid, silent=True)

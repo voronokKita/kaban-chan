@@ -4,7 +4,6 @@ import threading
 import time
 
 import feedparser
-from sqlalchemy.orm import Session as SQLSession
 
 from kaban.settings import *
 from kaban import helpers
@@ -65,7 +64,7 @@ class UpdaterThread(threading.Thread):
 
         if not messages: return
 
-        with SQLSession(db) as session:
+        with SQLSession() as session:
             uids = session.query(FeedsDB.uid).distinct()
             for uid in session.scalars(uids):
                 for m in messages:
@@ -83,7 +82,7 @@ class UpdaterThread(threading.Thread):
     @staticmethod
     def _populate_user_ids(new_posts: UpdPosts):
         """ Subfunction of _load(), loads all uids. """
-        with SQLSession(db) as session:
+        with SQLSession() as session:
             for db_entry in session.scalars(session.query(FeedsDB)):
                 new_posts[db_entry.uid] = {}
 
@@ -92,7 +91,7 @@ class UpdaterThread(threading.Thread):
         """ Subfunction of _load(), loads all feeds. """
         for uid in new_posts:
             dict_of_feeds: UpdFeeds = {}
-            with SQLSession(db) as session:
+            with SQLSession() as session:
                 entries = session.query(FeedsDB).filter(FeedsDB.uid == uid)
                 for db_entry in session.scalars(entries):
                     dict_of_feeds[db_entry.feed] = []
@@ -120,7 +119,7 @@ class UpdaterThread(threading.Thread):
     @staticmethod
     def _populate_list_of_posts(posts_to_send: UpdPostList, feed: Feed, uid: int):
         """ Subfunction of _load(), loads new posts from a feed. """
-        with SQLSession(db) as session:
+        with SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(
                 FeedsDB.uid == uid,
                 FeedsDB.feed == feed.href
@@ -158,7 +157,7 @@ class UpdaterThread(threading.Thread):
         """ A bottom function.
             Forwards a post to the post sender function.
             Save changes to the database. """
-        with SQLSession(db) as session:
+        with SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(
                 FeedsDB.uid == uid,
                 FeedsDB.feed == feed

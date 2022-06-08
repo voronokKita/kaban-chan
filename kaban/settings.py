@@ -11,6 +11,7 @@ import telebot
 import feedparser
 import sqlalchemy as sql
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 
 # Annotations
@@ -42,9 +43,12 @@ class Key(str): pass
 
 class Command(str): pass
 
+class Engine(sql.engine.Engine): pass
+
 
 # Main data
 MASTER = "@simple_complexity"
+MASTER_UID = 1266575762
 
 REPLIT = False
 
@@ -146,7 +150,8 @@ else:
 POSTS_TO_STORE = 50
 
 DB_URI: Path = BASE_DIR / "resources" / "database.sqlite3"
-db = sql.create_engine(f"sqlite:///{DB_URI}", future=True)
+db: Engine = sql.create_engine(f"sqlite:///{DB_URI}", future=True)
+SQLSession = sessionmaker(db)
 SQLAlchemyBase = declarative_base()
 
 class FeedsDB(SQLAlchemyBase):
@@ -169,6 +174,9 @@ class WebhookDB(SQLAlchemyBase):
     data = sql.Column(sql.Text, nullable=False)
     def __str__(self):
         return f"<web message #{self.id!r}>"
+
+if not DB_URI.exists():
+    SQLAlchemyBase.metadata.create_all(db)
 
 
 # Requests errors

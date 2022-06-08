@@ -3,7 +3,6 @@ import secrets
 import telebot
 import flask
 from flask import Flask, request
-from sqlalchemy.orm import Session as SQLSession
 
 from kaban.settings import *
 
@@ -42,7 +41,7 @@ def get_app():
             flask.abort(403)
 
         else:
-            with SQLSession(db) as session:
+            with SQLSession() as session:
                 new_message = WebhookDB(data=data)
                 session.add(new_message)
                 session.commit()

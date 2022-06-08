@@ -3,7 +3,8 @@ import pathlib
 import unittest
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
-sys.path.append(str(BASE_DIR))
+if BASE_DIR not in sys.path:
+    sys.path.append(str(BASE_DIR))
 
 from tests.units import test_helpers
 
