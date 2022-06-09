@@ -8,7 +8,7 @@ from kaban import helpers
 
 def get_bot():
     """ Will return main telebot requests processor. """
-    bot = telebot.TeleBot(API)
+    bot = telebot.TeleBot(API, threaded=False)
 
     @bot.message_handler(commands=['start', 'restart'])
     def hello(message):

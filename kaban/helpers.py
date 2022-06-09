@@ -110,6 +110,8 @@ def check_out_feed(feed: str, uid: int, first_time=True):
             post = parsed_feed.entries[0]
             if not parsed_feed.href or not post.published_parsed or not post.title:
                 raise FeedFormatError
+        except (AttributeError, IndexError, FeedFormatError):
+            raise FeedFormatError
         except Exception as exc:
             raise Exception from exc
 

@@ -12,6 +12,7 @@ Thanks to
     https://github.com/TelegramBotAPI/errors
     https://stackoverflow.com/a/54800683
     https://github.com/eternnoir/pyTelegramBotAPI/issues/139
+    https://realpython.com/python-mock-library/
 """
 import signal
 import sys
@@ -77,10 +78,14 @@ def main():
     sys.exit(3) if errors else sys.exit(0)
 
 
+def execute_tests():
+    from tests import testsuite
+    testsuite.execute()
+
+
 if __name__ == '__main__':
-    if __debug__ and not REPLIT:
-        from tests import testsuite
-        testsuite.execute()
+    if __debug__ is True:
+        execute_tests()
         exit()
 
     signal.signal(signal.SIGINT, helpers.exit_signal)
