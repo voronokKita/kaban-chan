@@ -18,18 +18,6 @@ def exit_signal(signal_=None, frame=None):
 
 def send_message(bot, uid: int, text: str):
     """ Final point. Handles errors in requests to Telegram. """
-
-    def resend_message(attempt: int, sleep: int, delete=False) -> bool:
-        """ Will try to send message again [attempt] times after [sleep].
-            Request to delete user if needed. """
-        if attempt == 0:
-            if delete: delete_user(uid)
-            else: pass
-            return False
-        else:
-            time.sleep(sleep)
-            return True
-
     retry = None
     while True:
         try:
@@ -42,12 +30,12 @@ def send_message(bot, uid: int, text: str):
 
             elif UID_NOT_FOUND.search(error.description):
                 retry = 1 if retry is None else retry - 1
-                if resend_message(retry, sleep=5, delete=True): continue
+                if resend_message(retry, sleep=5, delete_uid=uid): continue
                 else: log.warning('user/chat not found; uid deleted')
 
             elif BOT_BLOCKED.search(error.description):
                 retry = 3 if retry is None else retry - 1
-                if resend_message(retry, sleep=10, delete=True): continue
+                if resend_message(retry, sleep=10, delete_uid=uid): continue
                 else: log.warning('bot blocked; uid deleted')
 
             elif BOT_TIMEOUT.search(error.description):
@@ -69,6 +57,18 @@ def send_message(bot, uid: int, text: str):
         break
 
 
+def resend_message(attempt: int, sleep: int, delete_uid=None) -> bool:
+    """ Will try to send message again [attempt] times after [sleep].
+        Request to delete user if needed. """
+    if attempt == 0:
+        if delete_uid: delete_user(delete_uid)
+        else: pass
+        return False
+    else:
+        time.sleep(sleep)
+        return True
+
+
 def send_a_post(bot, post: Feed, db_entry, feed: str):
     """ Makes a post from some feed and sends it to a uid. """
     text = ""
@@ -79,12 +79,14 @@ def send_a_post(bot, post: Feed, db_entry, feed: str):
 
     if db_entry.summary:
         try:
-            soup = BeautifulSoup(post.summary, features='html.parser')
-            s = soup.text[:FEED_SUMMARY_LEN].strip()
-            s += "..." if len(soup.text) > FEED_SUMMARY_LEN else ""
-            text += "\n" + s + "\n"
-        except AttributeError:
+            summary_text = BeautifulSoup(post.summary, features='html.parser').text.strip()
+            if not summary_text: raise AttributeError
+        except (AttributeError, TypeError):
             feed_switcher(db_entry.uid, CMD_SUMMARY, feed)
+        else:
+            s = summary_text[:FEED_SUMMARY_LEN]
+            s += "..." if len(summary_text) > FEED_SUMMARY_LEN else ""
+            text += "\n" + s + "\n"
 
     if db_entry.date:
         published = datetime.fromtimestamp(
@@ -94,9 +96,11 @@ def send_a_post(bot, post: Feed, db_entry, feed: str):
 
     if db_entry.link:
         try:
-            text += post.link + "\n"
-        except AttributeError:
+            if not post.link: raise TypeError
+        except (AttributeError, TypeError):
             feed_switcher(db_entry.uid, CMD_LINK, feed)
+        else:
+            text += post.link + "\n"
 
     send_message(bot, db_entry.uid, text)
 
@@ -204,23 +208,23 @@ def list_user_feeds(uid: int) -> str:
 
 def feed_shortcut(uid: int, shortcut: str, feed: str) -> str:
     """ Assign shortcut to a feed. """
-    shortcut = None if len(shortcut) == 0 else shortcut
-    try:
-        with SQLSession() as session:
-            db_entry = session.query(FeedsDB).filter(
-                FeedsDB.uid == uid,
-                FeedsDB.feed == feed,
-            ).first()
-            db_entry.short = shortcut
-            session.commit()
-    except Exception as exc:
-        log.exception(exc)
-        return "Undefined error."
+    if len(shortcut) > SHORTCUT_LEN:
+        raise IndexError
     else:
-        return "Done."
+        shortcut = None if len(shortcut) == 0 else shortcut
+
+    with SQLSession() as session:
+        db_entry = session.query(FeedsDB).filter(
+            FeedsDB.uid == uid,
+            FeedsDB.feed == feed,
+        ).first()
+        db_entry.short = shortcut
+        session.commit()
+
+    return "Done."
 
 
-def feed_switcher(uid: int, command, feed: str):  # TODO
+def feed_switcher(uid: int, command: Command, feed: str):
     """ Changes post style. """
     with SQLSession() as session:
         db_entry = session.query(FeedsDB).filter(
@@ -242,10 +246,3 @@ def delete_user(uid: int):
         result = session.query(FeedsDB).filter(FeedsDB.uid == uid)
         for entry in session.scalars(result):
             delete_a_feed(entry.feed, uid, silent=True)
-
-
-def sum(arg):
-    " junk "
-    total = 0
-    for val in arg: total += val
-    return total

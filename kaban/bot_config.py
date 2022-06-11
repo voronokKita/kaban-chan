@@ -99,12 +99,12 @@ def get_bot():
             feed = parts[0][1].strip()
             shortcut = parts[0][2]
             try:
-                if len(shortcut) > SHORTCUT_LEN: raise IndexError
                 helpers.check_out_feed(feed, uid, first_time=False)
-            except IndexError:
-                text = f"The maximum length is {SHORTCUT_LEN} characters."
             except DataAlreadyExists:
-                text = helpers.feed_shortcut(uid, shortcut, feed)
+                try:
+                    text = helpers.feed_shortcut(uid, shortcut, feed)
+                except IndexError:
+                    text = f"The maximum length is {SHORTCUT_LEN} characters."
             else:
                 text = "No such web feed found. Check for errors."
 
@@ -128,7 +128,7 @@ def get_bot():
                 PATTERN_LINK.fullmatch(message_text):
             parts = PATTERN_COMMAND.findall(message_text)
             feed = parts[0][1]
-            command = parts[0][0].strip()
+            command = Command(parts[0][0].strip())
             try:
                 helpers.check_out_feed(feed, uid, first_time=False)
             except DataAlreadyExists:
