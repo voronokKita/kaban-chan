@@ -37,7 +37,7 @@ def get_app():
 
         except WebhookRequestError:
             log.exception(f'Alien Invasion 👽 {request.get_data().decode("utf-8")}')
-            BANNED.append(request.environ.get('REMOTE_ADDR'))
+            BANNED.append(ip)
             flask.abort(403)
 
         else:

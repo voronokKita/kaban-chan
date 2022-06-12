@@ -3,7 +3,7 @@ import threading
 
 import telebot
 from pyngrok import ngrok
-from werkzeug.serving import make_server
+from werkzeug.serving import make_server, BaseWSGIServer
 
 from kaban.settings import *
 from kaban import helpers
@@ -28,11 +28,16 @@ class WebhookThread(threading.Thread):
         self.replit = REPLIT
         self.replit_url = REPLIT_URL
 
-        self.server = make_server(
-            host=self.server_ip,
-            port=self.server_port,
-            app=self.app
-        )
+        try:
+            self.server = make_server(
+                host=self.server_ip,
+                port=self.server_port,
+                app=self.app
+            )
+            if type(self.server) is not BaseWSGIServer:
+                raise TypeError
+        except (OSError, TypeError, Exception) as exc:
+            raise Exception from exc
 
     def __str__(self): return "webhook thread"
 
@@ -42,7 +47,6 @@ class WebhookThread(threading.Thread):
             self._set_webhook()
             self.ready.set()
             self.server.serve_forever()
-
         except Exception as error:
             self.exception = error
             self.exit()
@@ -62,8 +66,8 @@ class WebhookThread(threading.Thread):
             '--header', 'Content-Type: application/json',
             '--data-raw', f'{{"url": "{self.url}"}}'
         ]
-        result = subprocess.check_output(k, stderr=subprocess.STDOUT).decode("utf-8")
-        if not self.webhook_was_set.search(result):
+        result = subprocess.check_output(k, stderr=subprocess.STDOUT)
+        if not self.webhook_was_set.search(result.decode("utf-8")):
             raise Exception(result)
 
     def shutdown(self):
