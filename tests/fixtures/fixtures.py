@@ -20,28 +20,28 @@ TEST_DB = [
         'uid': 42,
         'feed': 'https://feeds.feedburner.com/PythonInsider',
         'last_posts': 'eed88bab961aeadf2a7fcad594630f01 /// 1264ffbb3b77e31eeb8d97e167e4df3a',
-        'last_check': datetime.fromisoformat('2022-06-06 17:33:00'),
+        'last_check': datetime.fromisoformat('2022-01-06 17:33:00'),
         'summary': True, 'date': True, 'link': True, 'short': 'python'
     },
     {
         'uid': 42,
         'feed': 'https://www.wired.com/feed/category/business/latest/rss',
         'last_posts': 'c80aa8404ad0825822273e1897b9dcac /// 9fcac0d44dae6aaee0b5567a490d0748',
-        'last_check': datetime.fromisoformat('2022-06-07 11:00:00'),
+        'last_check': datetime.fromisoformat('2022-01-07 11:00:00'),
         'summary': True, 'date': True, 'link': True, 'short': None
     },
     {
         'uid': 9999,
         'feed': 'https://www.wired.com/feed/category/culture/latest/rss',
         'last_posts': '76ad4e66532c683ca2e41048fe234ec3 /// fa0aaf1980f2f19b297ad8b669974a4f',
-        'last_check': datetime.fromisoformat('2022-06-07 10:00:00'),
+        'last_check': datetime.fromisoformat('2022-01-07 10:00:00'),
         'summary': False, 'date': False, 'link': False, 'short': None
     },
     {
         'uid': 13000000000,
         'feed': 'https://www.wired.com/feed/category/science/latest/rss',
         'last_posts': '78f5b21fb5214a338635c0f6a158f057',
-        'last_check': datetime.fromisoformat('2022-06-07 12:00:00'),
+        'last_check': datetime.fromisoformat('2022-01-07 12:00:00'),
         'summary': True, 'date': True, 'link': True, 'short': None
     },
 ]

@@ -41,10 +41,9 @@ class UpdaterThread(threading.Thread):
             while True:
                 new_posts: UpdPosts = {}
                 self._load(new_posts)
-
                 self._forward(new_posts)
-
                 del new_posts
+                self._test()
 
                 if self.exit_event.wait(self.timeout):
                     break
@@ -105,11 +104,12 @@ class UpdaterThread(threading.Thread):
                 try:
                     parsed_feed: Feed = feedparser.parse(feed)
                     if not parsed_feed.entries or not parsed_feed.entries[0].title:
-                        raise FeedLoadError(feed)
+                        raise FeedLoadError
 
-                    self._populate_list_of_posts(posts_to_send, parsed_feed, uid)
-
-                except FeedLoadError:
+                    self._populate_list_of_posts(
+                        posts_to_send, parsed_feed.entries, uid, feed
+                    )
+                except (AttributeError, IndexError, FeedLoadError):
                     log.warning(f'failed to load feed - {feed}')
                 except Exception as error:
                     log.warning(f'feedparser fail - {error}')
@@ -117,18 +117,19 @@ class UpdaterThread(threading.Thread):
                     new_posts[uid][feed] = posts_to_send
 
     @staticmethod
-    def _populate_list_of_posts(posts_to_send: UpdPostList, feed: Feed, uid: int):
+    def _populate_list_of_posts(posts_to_send: UpdPostList,
+                                posts: list, uid: int, feed: str):
         """ Subfunction of _load(), loads new posts from a feed. """
         with SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(
                 FeedsDB.uid == uid,
-                FeedsDB.feed == feed.href
+                FeedsDB.feed == feed
             ).first()
 
             old_posts = set(db_entry.last_posts.split(' /// '))
             feed_last_check = db_entry.last_check
 
-        for post in feed.entries:
+        for post in posts:
             published = datetime.fromtimestamp(
                 time.mktime(post.published_parsed)
             )
@@ -175,6 +176,11 @@ class UpdaterThread(threading.Thread):
             db_entry.last_posts = new_last_posts
             db_entry.last_check = published
             session.commit()
+
+    @staticmethod
+    def _test():
+        """ Needed for testing. """
+        pass
 
     def stop(self):
         threading.Thread.join(self)
