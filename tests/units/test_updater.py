@@ -53,6 +53,15 @@ class SetUpdater(Fixtures):
             for i, call in enumerate(upd._updater.call_args_list):
                 self.assertEqual(TEST_DB[i]['feed'], call.args[1])
 
+    def test_exception(self, mock_log):
+        upd = updater.UpdaterThread(bot_config.get_bot())
+        upd._load = Mock()
+        upd._load.side_effect = Exception
+        upd.start()
+        time.sleep(0.05)
+        with self.assertRaises(Exception):
+            upd.stop()
+
     @unittest.skipIf(no_internet, 'no internet')
     def test_with_internet(self, mock_log):
         # It's impossible to know how long it will take to process~
