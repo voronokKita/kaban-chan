@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import Mock, patch, mock_open, ANY
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
-if BASE_DIR not in sys.path:
+if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 import kaban

@@ -13,6 +13,7 @@ class ReceiverThread(threading.Thread):
         self.exception = None
 
         self.exit = helpers.exit_signal
+        self.send_message = helpers.send_message
 
         self.new_messages = NEW_MESSAGES_EVENT
         self.exit_event = EXIT_EVENT
@@ -35,7 +36,8 @@ class ReceiverThread(threading.Thread):
             self.exit()
 
     def _handler(self):
-        """ Loads messages from the WebhookDB and passes them to the telebot processor. """
+        """ Loads messages from the WebhookDB and
+            passes them to the telebot processor. """
         data = None
         with SQLSession() as session:
             message = session.query(WebhookDB).first()
@@ -45,16 +47,16 @@ class ReceiverThread(threading.Thread):
                 session.query(WebhookDB).where(WebhookDB.id == message.id).delete()
                 session.commit()
 
+                update = telebot.types.Update.de_json(data)
+                self.bot.process_new_updates([update])
+
             # ensure that this is the last message
             if not session.query(WebhookDB).first():
                 self.new_messages.clear()
 
-        update = telebot.types.Update.de_json(data)
-        self.bot.process_new_updates([update])
-
     def _receiver_stop(self):
         for uid in self.users_in_memory:
-            helpers.send_message(self.bot, uid, self.exit_note)
+            self.send_message(self.bot, uid, self.exit_note)
 
     def stop(self):
         threading.Thread.join(self)
