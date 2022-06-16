@@ -1,190 +1,193 @@
+from copy import deepcopy
 from datetime import datetime
 import hashlib
-import time
-import sys
 import pathlib
+import sys
+import time
 import unittest
 from unittest.mock import Mock, patch, ANY
 
 from telebot.apihelper import ApiTelegramException
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
-if BASE_DIR not in sys.path:
+if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
-import kaban
 from kaban import helpers
-from kaban.settings import DataAlreadyExists, FeedFormatError, FeedPreprocessError
-from kaban.settings import FeedsDB, CMD_SUMMARY, CMD_DATE, CMD_LINK, SHORTCUT_LEN
-from kaban.settings import WRONG_TOKEN, UID_NOT_FOUND, BOT_BLOCKED, BOT_TIMEOUT
+from kaban.settings import (
+    DataAlreadyExists, FeedFormatError, FeedPreprocessError,
+    FeedsDB, CMD_SUMMARY, CMD_DATE, CMD_LINK, SHORTCUT_LEN,
+    WRONG_TOKEN, UID_NOT_FOUND, BOT_BLOCKED, BOT_TIMEOUT
+)
+from tests.fixtures.fixtures import (
+    MockDB, reset_mock, TEST_DB,
+    MOCK_DB_ENTRY, MOCK_POST, MOCK_FEED
+)
 
-from tests.fixtures.fixtures import Fixtures, TEST_DB
 
-
+@patch('kaban.helpers.log')
+@patch('kaban.helpers.time')
+@patch('kaban.helpers.exit_signal')
+@patch('kaban.helpers.delete_user')
 class SendMessage(unittest.TestCase):
-    @staticmethod
-    def test_normal_case():
-        with patch('kaban.helpers.log') as mock_log, \
-                patch('kaban.helpers.delete_user') as mock_delete_user, \
-                patch('kaban.helpers.resend_message') as mock_resend:
+    def test_normal_case(self, *args):
+        mock_bot = Mock()
+        with patch('kaban.helpers.resend_message') as mock_resend:
             mock_resend.return_value = False
-            mock_bot = Mock()
-            helpers.send_message(mock_bot, 42, 'hello')
-            mock_bot.send_message.assert_called_once()
-            mock_resend.assert_not_called()
-
-    def test_exceptions(self):
-        with patch('kaban.helpers.exit_signal') as mock_exit, \
-                patch('kaban.helpers.log') as mock_log, \
-                patch('kaban.helpers.delete_user') as mock_delete_user, \
-                patch('kaban.helpers.resend_message') as mock_resend:
-            mock_resend.return_value = False
-            mock_bot = Mock()
-            exceptions = [
-                WRONG_TOKEN.pattern,
-                UID_NOT_FOUND.pattern,
-                BOT_BLOCKED.pattern,
-                BOT_TIMEOUT.pattern,
-                'undefined',
-                'broken'
-            ]
-            for i, description in enumerate(exceptions):
-                if description == 'broken': exc = TypeError(description)
-                else:
-                    exc = ApiTelegramException(
-                        'foo', 'bar', {'error_code': 400, 'description': description}
-                    )
-                mock_bot.send_message.side_effect = exc
-                helpers.send_message(mock_bot, 42, 'hello')
-                if i == 0: mock_exit.assert_called_once()
-                else: self.assertEqual(mock_resend.call_count, i)
-
-    def test_resend_message(self):
-        with patch('kaban.helpers.log') as mock_log, \
-                patch('kaban.helpers.time') as mock_time, \
-                patch('kaban.helpers.delete_user') as mock_delete_user:
-            mock_bot = Mock()
-            exc = ApiTelegramException(
-                'foo', 'bar', {'error_code': 400, 'description': BOT_BLOCKED.pattern}
-            )
-            mock_bot.send_message.side_effect = exc
             helpers.send_message(mock_bot, 42, 'hello')
 
-            self.assertEqual(mock_bot.send_message.call_count, 4)
-            self.assertEqual(mock_time.sleep.call_count, 4)
-            mock_delete_user.assert_called_once()
+        mock_bot.send_message.assert_called_once()
+        mock_resend.assert_not_called()
 
+        reset_mock(*args)
 
-class PostSender(Fixtures):
-    def test_normal_case(self):
-        db_entry = Mock()
-        db_entry.short = TEST_DB[0]['short']
-        db_entry.summary = TEST_DB[0]['summary']
-        db_entry.date = TEST_DB[0]['date']
-        db_entry.link = TEST_DB[0]['link']
-        db_entry.uid = TEST_DB[0]['uid']
-        post = Mock()
-        post.title = self.post_data['title']
-        post.summary = self.post_data['summary']
-        post.published_parsed = tuple(self.post_data['published_parsed'])
-        post.link = self.post_data['link']
-
-        with patch('kaban.helpers.send_message') as mock_sender_func, \
-                patch('kaban.helpers.feed_switcher') as mock_switcher:
-            helpers.send_a_post('bot', post, db_entry, 'dummy-feed')
-            mock_sender_func.assert_called_with('bot', db_entry.uid, ANY)
-            mock_switcher.assert_not_called()
-
-    def test_feed_switcher_calls(self):
-        db_entry = Mock()
-        db_entry.short = None
-        db_entry.date = False
-        db_entry.uid = TEST_DB[0]['uid']
-        post = Mock()
-        post.title = self.post_data['title']
-        post.summary = None
-        post.link = None
-
-        with patch('kaban.helpers.send_message') as mock_sender_func, \
-                patch('kaban.helpers.feed_switcher') as mock_switcher:
-            helpers.send_a_post('bot', post, db_entry, 'dummy-feed')
-            mock_switcher.assert_called_with(db_entry.uid, ANY, 'dummy-feed')
-            self.assertEqual(mock_switcher.call_count, 2)
-
-
-class FeedCheckOut(Fixtures):
-    def test_feed_exists(self):
-        with patch('kaban.helpers.SQLSession') as mock_session, \
-                patch('kaban.helpers.feedparser') as mock_feedparser:
-            mock_session.return_value = self.SQLSession()
-            with self.assertRaises(DataAlreadyExists):
-                helpers.check_out_feed(
-                    TEST_DB[0]['feed'], TEST_DB[0]['uid'], first_time=False
+    def test_exceptions(self, foo, mock_exit, bar, mock_log):
+        mock_bot = Mock()
+        wrong = 'A request to the Telegram API was unsuccessful. ' \
+                'Error code: 400. Description: Unauthorized'
+        exceptions = [
+            {'descr': WRONG_TOKEN.pattern, 'log': f'wrong telegram token - {wrong}'},
+            {'descr': UID_NOT_FOUND.pattern, 'log': 'user/chat not found; uid deleted'},
+            {'descr': BOT_BLOCKED.pattern, 'log': 'bot blocked; uid deleted'},
+            {'descr': BOT_TIMEOUT.pattern, 'log': 'telegram timeout'},
+            {'descr': 'undefined', 'log': 'undefined telegram problem'},
+            {'descr': 'broken', 'log': 'broken'},
+        ]
+        for _dict in exceptions:
+            if _dict['descr'] == 'broken': exc = TypeError(_dict['descr'])
+            else:
+                exc = ApiTelegramException(
+                    'foo', 'bar', {'error_code': 400, 'description': _dict['descr']}
                 )
-                mock_feedparser.parse.assert_not_called()
+            mock_bot.send_message.side_effect = exc
+            with patch('kaban.helpers.resend_message') as mock_resend:
+                mock_resend.return_value = False
+                helpers.send_message(mock_bot, 42, 'hello')
 
-    def test_feed_dont_exists(self):
-        with patch('kaban.helpers.SQLSession') as mock_session, \
-                patch('kaban.helpers.feedparser') as mock_feedparser:
-            mock_session.return_value = self.SQLSession()
-            helpers.check_out_feed('dummy-feed', 0, first_time=False)
-            helpers.check_out_feed(TEST_DB[0]['feed'], 0, first_time=False)
-            helpers.check_out_feed('dummy-feed', TEST_DB[0]['uid'], first_time=False)
-            self.assertEqual(mock_session.call_count, 3)
+            if _dict['descr'] == WRONG_TOKEN.pattern:
+                mock_exit.assert_called_once()
+                mock_log.critical.assert_called_with(_dict['log'])
+            elif _dict['descr'] == 'broken':
+                mock_resend.assert_called_once()
+            else:
+                mock_resend.assert_called_once()
+                mock_log.warning.assert_called_with(_dict['log'])
+            mock_log.reset_mock()
 
-    def test_feed_parser(self):
-        dummy_post = Mock()
-        dummy_post.published_parsed = True
-        dummy_post.title = True
-        dummy_feed = Mock()
-        dummy_feed.entries = [dummy_post]
-        dummy_feed.href = True
+        reset_mock(foo, mock_exit, bar, mock_log)
 
-        with patch('kaban.helpers.SQLSession') as mock_session, \
-                patch('kaban.helpers.feedparser') as mock_feedparser:
-            mock_session.return_value = self.SQLSession()
-            mock_feedparser.parse.return_value = dummy_feed
+    def test_resend_message(self, mock_delete_user, foo, mock_time, bar):
+        mock_bot = Mock()
+        exc = ApiTelegramException(
+            'foo', 'bar', {'error_code': 400, 'description': BOT_BLOCKED.pattern}
+        )
+        mock_bot.send_message.side_effect = exc
+        helpers.send_message(mock_bot, 42, 'hello')
+
+        self.assertEqual(mock_bot.send_message.call_count, 4)
+        self.assertEqual(mock_time.sleep.call_count, 4)
+        mock_delete_user.assert_called_once()
+
+        reset_mock(mock_delete_user, foo, mock_time, bar)
+
+
+@patch('kaban.helpers.feed_switcher')
+@patch('kaban.helpers.send_message')
+class PostSender(MockDB):
+    def test_normal_case(self, mock_message, mock_switcher):
+        mock_db_entry = deepcopy(MOCK_DB_ENTRY)
+        mock_post = deepcopy(MOCK_POST)
+
+        helpers.send_a_post('bot', mock_post, mock_db_entry, 'dummy-feed')
+        mock_message.assert_called_with('bot', mock_db_entry.uid, ANY)
+        mock_switcher.assert_not_called()
+
+        reset_mock(mock_message, mock_switcher)
+
+    def test_feed_switcher_calls(self, foo, mock_switcher):
+        mock_db_entry = deepcopy(MOCK_DB_ENTRY)
+        mock_db_entry.short = None
+        mock_db_entry.date = False
+        mock_post = deepcopy(MOCK_POST)
+        mock_post.summary = None
+        mock_post.link = None
+
+        helpers.send_a_post('bot', mock_post, mock_db_entry, 'dummy-feed')
+        mock_switcher.assert_called_with(mock_db_entry.uid, ANY, 'dummy-feed')
+        self.assertEqual(mock_switcher.call_count, 2)
+
+        reset_mock(foo, mock_switcher)
+
+
+@patch('kaban.helpers.feedparser')
+@patch('kaban.helpers.SQLSession')
+class FeedCheckOut(MockDB):
+    def test_feed_exists(self, mock_session, mock_feedparser):
+        mock_session.return_value = self.SQLSession()
+        with self.assertRaises(DataAlreadyExists):
+            helpers.check_out_feed(
+                TEST_DB[0]['feed'], TEST_DB[0]['uid'], first_time=False
+            )
+            mock_feedparser.parse.assert_not_called()
+
+        reset_mock(mock_session, mock_feedparser)
+
+    def test_feed_dont_exists(self, mock_session, foo):
+        mock_session.return_value = self.SQLSession()
+        helpers.check_out_feed('dummy-feed', 0, first_time=False)
+        helpers.check_out_feed(TEST_DB[0]['feed'], 0, first_time=False)
+        helpers.check_out_feed('dummy-feed', TEST_DB[0]['uid'], first_time=False)
+
+        self.assertEqual(mock_session.call_count, 3)
+
+        reset_mock(mock_session, foo)
+
+    def test_feed_parser(self, mock_session, mock_feedparser):
+        mock_feed = deepcopy(MOCK_FEED)
+        mock_feedparser.parse.return_value = mock_feed
+        mock_session.return_value = self.SQLSession()
+
+        helpers.check_out_feed('dummy-feed', 0)
+        mock_feedparser.parse.assert_called_once()
+
+        reset_mock(mock_session, mock_feedparser)
+
+    def test_feed_parser_errors(self, mock_session, mock_feedparser):
+        mock_session.return_value = self.SQLSession()
+
+        mock_feedparser.parse.return_value = None
+        with self.assertRaises(FeedFormatError):
             helpers.check_out_feed('dummy-feed', 0)
-            mock_feedparser.parse.assert_called_once()
 
-    def test_feed_parser_error(self):
-        with patch('kaban.helpers.SQLSession') as mock_session, \
-                patch('kaban.helpers.feedparser') as mock_feedparser:
-            mock_session.return_value = self.SQLSession()
+        mock_feed = deepcopy(MOCK_FEED)
+        mock_feed.entries[0].published_parsed = None
+        mock_feed.entries[0].title = None
+        mock_feedparser.parse.return_value = mock_feed
+        with self.assertRaises(FeedFormatError):
+            helpers.check_out_feed('dummy-feed', 0)
 
-            mock_feedparser.parse.return_value = None
-            with self.assertRaises(FeedFormatError):
-                helpers.check_out_feed('dummy-feed', 0)
+        mock_feed.entries = []
+        mock_feedparser.parse.return_value = mock_feed
+        with self.assertRaises(FeedFormatError):
+            helpers.check_out_feed('dummy-feed', 0)
 
-            dummy_feed = Mock()
-            dummy_feed.entries = []
-            mock_feedparser.parse.return_value = dummy_feed
-            with self.assertRaises(FeedFormatError):
-                helpers.check_out_feed('dummy-feed', 0)
+        mock_feedparser.parse.side_effect = Exception
+        with self.assertRaises(Exception):
+            helpers.check_out_feed('dummy-feed', 0)
 
-            dummy_post = Mock()
-            dummy_post.published_parsed = None
-            dummy_post.title = None
-            dummy_feed.entries = [dummy_post]
-            dummy_feed.href = None
-            mock_feedparser.parse.return_value = dummy_feed
-            with self.assertRaises(FeedFormatError):
-                helpers.check_out_feed('dummy-feed', 0)
-
-            mock_feedparser.parse.side_effect = Exception
-            with self.assertRaises(Exception):
-                helpers.check_out_feed('dummy-feed', 0)
+        reset_mock(mock_session, mock_feedparser)
 
 
-class AddNewFeed(Fixtures):
-    def test_normal_case(self):
-        with patch('kaban.helpers.info') as mock_info, \
-                patch('kaban.helpers.SQLSession') as mock_session, \
-                patch('kaban.helpers.new_feed_preprocess') as mock_feed_preprc:
-            mock_session.return_value = self.SQLSession()
-            result = helpers.add_new_feed('bot', 142142, 'dummy-feed')
-            self.assertEqual(result, 'New web feed added!')
-            mock_feed_preprc.assert_called_with('bot', 142142, 'dummy-feed')
+@patch('kaban.helpers.info')
+@patch('kaban.helpers.new_feed_preprocess')
+@patch('kaban.helpers.SQLSession')
+class AddNewFeed(MockDB):
+    def test_normal_case(self, mock_session, mock_feed_preprc, foo):
+        mock_session.return_value = self.SQLSession()
+        result = helpers.add_new_feed('bot', 142142, 'dummy-feed')
+
+        self.assertEqual(result, 'New web feed added!')
+        mock_feed_preprc.assert_called_with('bot', 142142, 'dummy-feed')
 
         with self.SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(
@@ -192,62 +195,62 @@ class AddNewFeed(Fixtures):
             ).first()
             self.assertIsNotNone(db_entry)
 
-    def test_except_case(self):
-        with patch('kaban.helpers.info') as mock_info, \
-                patch('kaban.helpers.SQLSession') as mock_session, \
-                patch('kaban.helpers.new_feed_preprocess') as mock_feed_preprc:
-            mock_session.return_value = self.SQLSession()
-            mock_feed_preprc.side_effect = FeedPreprocessError
-            result = helpers.add_new_feed('bot', 142142, 'dummy-feed')
-            self.assertIn('some issues', result)
+        reset_mock(mock_session, mock_feed_preprc, foo)
+
+    def test_except_case(self, mock_session, mock_feed_preprc, foo):
+        mock_session.return_value = self.SQLSession()
+        mock_feed_preprc.side_effect = FeedPreprocessError
+        result = helpers.add_new_feed('bot', 142142, 'dummy-feed')
+
+        self.assertIn('some issues', result)
+
+        reset_mock(mock_session, mock_feed_preprc, foo)
 
 
-class NewFeedPreprocess(Fixtures):
-    def test_normal_case(self):
-        post = Mock()
-        post.title = self.post_data['title']
-        post.published_parsed = tuple(self.post_data['published_parsed'])
-
-        with patch('kaban.helpers.log') as mock_log, \
-                patch('kaban.helpers.SQLSession') as mock_session, \
-                patch('kaban.helpers.feedparser') as mock_feedparser, \
-                patch('kaban.helpers.send_a_post') as mock_post_sender:
-            mock_session.return_value = self.SQLSession()
-            mock_feedparser.parse().entries = [post]
-
-            helpers.new_feed_preprocess('bot', TEST_DB[0]['uid'], TEST_DB[0]['feed'])
-            mock_post_sender.assert_called_with('bot', post, ANY, TEST_DB[0]['feed'])
-
-        title = hashlib.md5(
-            post.title.strip().encode()
+@patch('kaban.helpers.log')
+@patch('kaban.helpers.feedparser')
+@patch('kaban.helpers.send_a_post')
+@patch('kaban.helpers.SQLSession')
+class NewFeedPreprocess(MockDB):
+    def test_normal_case(self, mock_session, mock_poster, mock_feedparser, foo):
+        mock_session.return_value = self.SQLSession()
+        mock_post = deepcopy(MOCK_POST)
+        mock_feedparser.parse().entries = [mock_post]
+        post_title = hashlib.md5(
+            mock_post.title.strip().encode()
         ).hexdigest()
-        top_post_date = datetime.fromtimestamp(
-            time.mktime(post.published_parsed)
+        post_date = datetime.fromtimestamp(
+            time.mktime(mock_post.published_parsed)
         )
+
+        helpers.new_feed_preprocess('bot', TEST_DB[0]['uid'], TEST_DB[0]['feed'])
+        mock_poster.assert_called_with('bot', mock_post, ANY, TEST_DB[0]['feed'])
+
         with self.SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(
                 FeedsDB.uid == TEST_DB[0]['uid'],
                 FeedsDB.feed == TEST_DB[0]['feed'],
             ).first()
-            self.assertEqual(db_entry.last_posts, title)
-            self.assertEqual(db_entry.last_check, top_post_date)
+            self.assertEqual(db_entry.last_posts, post_title)
+            self.assertEqual(db_entry.last_check, post_date)
 
-    def test_except_case(self):
-        with patch('kaban.helpers.log') as mock_log, \
-                patch('kaban.helpers.SQLSession') as mock_session, \
-                patch('kaban.helpers.send_a_post') as mock_post_sender:
-            mock_session.return_value = self.SQLSession()
-            with self.assertRaises(FeedPreprocessError):
-                helpers.new_feed_preprocess('bot', TEST_DB[0]['uid'], None)
+        reset_mock(mock_session, mock_poster, mock_feedparser, foo)
+
+    def test_except_case(self, mock_session, *args):
+        mock_session.return_value = self.SQLSession()
+        with self.assertRaises(FeedPreprocessError):
+            helpers.new_feed_preprocess('bot', TEST_DB[0]['uid'], None)
+
+        reset_mock(mock_session, *args)
 
 
-class DeleteFeed(Fixtures):
-    def test_normal_case(self):
-        with patch('kaban.helpers.info') as mock_info, \
-                patch('kaban.helpers.SQLSession') as mock_session:
-            mock_session.return_value = self.SQLSession()
-            result = helpers.delete_a_feed(TEST_DB[0]['feed'], TEST_DB[0]['uid'])
-            self.assertEqual(result, "Done.")
+@patch('kaban.helpers.info')
+@patch('kaban.helpers.SQLSession')
+class DeleteFeed(MockDB):
+    def test_normal_case(self, mock_session, foo):
+        mock_session.return_value = self.SQLSession()
+        result = helpers.delete_a_feed(TEST_DB[0]['feed'], TEST_DB[0]['uid'])
+        self.assertEqual(result, "Done.")
 
         with self.SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(
@@ -256,27 +259,31 @@ class DeleteFeed(Fixtures):
             ).first()
             self.assertIsNone(db_entry)
 
-    def test_except_case(self):
-        with patch('kaban.helpers.info') as mock_info, \
-                patch('kaban.helpers.SQLSession') as mock_session:
-            mock_session.return_value = self.SQLSession()
-            result = helpers.delete_a_feed('dummy-feed', 142142)
-            self.assertIn('Check for errors', result)
+        reset_mock(mock_session, foo)
+
+    def test_except_case(self, mock_session, foo):
+        mock_session.return_value = self.SQLSession()
+        result = helpers.delete_a_feed('dummy-feed', 142142)
+        self.assertIn('Check for errors', result)
+
+        reset_mock(mock_session, foo)
 
 
-class ListUserFeeds(Fixtures):
+class ListUserFeeds(MockDB):
     def test_normal_case(self):
         with patch('kaban.helpers.SQLSession') as mock_session:
             mock_session.return_value = self.SQLSession()
             result = helpers.list_user_feeds(TEST_DB[0]['uid'])
+
             self.assertIn(TEST_DB[0]['feed'], result)
             self.assertIn(TEST_DB[1]['feed'], result)
             self.assertIn("summary: on, date: on, link: on", result)
+
             result2 = helpers.list_user_feeds(TEST_DB[2]['uid'])
             self.assertIn("summary: off, date: off, link: off", result2)
 
 
-class FeedShortcut(Fixtures):
+class FeedShortcut(MockDB):
     def test_normal_case(self):
         with patch('kaban.helpers.SQLSession') as mock_session:
             mock_session.return_value = self.SQLSession()
@@ -304,7 +311,7 @@ class FeedShortcut(Fixtures):
                 helpers.feed_shortcut(142142, shortcut, 'dummy-feed')
 
 
-class FeedSwitcher(Fixtures):
+class FeedSwitcher(MockDB):
     def test_normal_case(self):
         with patch('kaban.helpers.SQLSession') as mock_session:
             mock_session.return_value = self.SQLSession()
@@ -322,7 +329,7 @@ class FeedSwitcher(Fixtures):
                             db_entry.link is False)
 
 
-class DeleteUser(Fixtures):
+class DeleteUser(MockDB):
     def test_normal_case(self):
         with patch('kaban.helpers.SQLSession') as mock_session, \
                 patch('kaban.helpers.delete_a_feed') as mock_delete_a_feed:

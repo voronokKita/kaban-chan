@@ -1,4 +1,5 @@
 import telebot
+import threading
 
 from kaban.settings import *
 from kaban import helpers
@@ -46,7 +47,6 @@ class ReceiverThread(threading.Thread):
 
                 session.query(WebhookDB).where(WebhookDB.id == message.id).delete()
                 session.commit()
-
                 update = telebot.types.Update.de_json(data)
                 self.bot.process_new_updates([update])
 

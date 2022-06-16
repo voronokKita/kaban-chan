@@ -46,7 +46,7 @@ def send_message(bot, uid: int, text: str):
             else:
                 retry = 3 if retry is None else retry - 1
                 if resend_message(retry, sleep=2): continue
-                else: log.exception('undefined telegram problem')
+                else: log.warning('undefined telegram problem')
 
         except Exception as exc:
             retry = 1 if retry is None else retry - 1

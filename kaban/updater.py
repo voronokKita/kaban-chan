@@ -78,15 +78,13 @@ class UpdaterThread(threading.Thread):
         self._populate_user_feeds(new_posts)
         self._populate_feed_posts(new_posts)
 
-    @staticmethod
-    def _populate_user_ids(new_posts: UpdPosts):
+    def _populate_user_ids(self, new_posts: UpdPosts):
         """ Subfunction of _load(), loads all uids. """
         with SQLSession() as session:
             for db_entry in session.scalars(session.query(FeedsDB)):
                 new_posts[db_entry.uid] = {}
 
-    @staticmethod
-    def _populate_user_feeds(new_posts: UpdPosts):
+    def _populate_user_feeds(self, new_posts: UpdPosts):
         """ Subfunction of _load(), loads all feeds. """
         for uid in new_posts:
             dict_of_feeds: UpdFeeds = {}
@@ -116,8 +114,7 @@ class UpdaterThread(threading.Thread):
                 finally:
                     new_posts[uid][feed] = posts_to_send
 
-    @staticmethod
-    def _populate_list_of_posts(posts_to_send: UpdPostList,
+    def _populate_list_of_posts(self, posts_to_send: UpdPostList,
                                 posts: list, uid: int, feed: str):
         """ Subfunction of _load(), loads new posts from a feed. """
         with SQLSession() as session:

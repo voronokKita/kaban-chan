@@ -1,50 +1,53 @@
-import time
-import sys
+from copy import copy
 import pathlib
+import sys
+import time
+import unittest
 from unittest.mock import Mock, patch, ANY
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
-import kaban
-from kaban import receiver
-from kaban.settings import WebhookDB, EXIT_EVENT
+from kaban.receiver import ReceiverThread
+from kaban.settings import WebhookDB, EXIT_EVENT, NEW_MESSAGES_EVENT, USERS, MASTER_UID
 
-from tests.fixtures.fixtures import Fixtures, TEST_DB
+from tests.fixtures.fixtures import MockDB, reset_mock, TG_REQUEST
 
 
-class SetReceiver(Fixtures):
-    def test_normal_case(self):
-        with open(BASE_DIR / 'tests' / 'fixtures' / 'tg_post') as f:
-            data = f.read().strip()
+@patch('kaban.helpers.exit_signal')
+@patch('kaban.receiver.SQLSession')
+@patch('kaban.helpers.send_message')
+class SetReceiver(MockDB):
+    def test_normal_case(self, mock_sender, mock_session, foo):
+        tg_request = copy(TG_REQUEST)
         with self.SQLSession() as session:
-            session.add(WebhookDB(data=data))
-            session.add(WebhookDB(data=data))
+            session.add(WebhookDB(data=tg_request))
+            session.add(WebhookDB(data=tg_request))
             session.commit()
+        USERS.setdefault(MASTER_UID, {'AWAITING_FEED': True, 'POTENTIAL_FEED': None})
 
-        with patch('kaban.receiver.SQLSession') as mock_session:
-            mock_session.return_value = self.SQLSession()
-            mock_bot = Mock()
-            recv = receiver.ReceiverThread(mock_bot)
-            recv.users_in_memory = {TEST_DB[0]['uid']: {'key-1': True, 'key-2': 'str'}}
-            recv.send_message = Mock()
+        mock_session.return_value = self.SQLSession()
+        mock_bot = Mock()
+        recv = ReceiverThread(mock_bot)
 
-            recv.new_messages = Mock()
-            recv.new_messages.wait.return_value = True
-            recv.new_messages.clear.side_effect = EXIT_EVENT.set
+        recv.new_messages = Mock()
+        recv.new_messages.wait.return_value = True
+        recv.new_messages.clear.side_effect = EXIT_EVENT.set
 
-            recv.start()
-            if EXIT_EVENT.wait(10):
-                time.sleep(0.1)
-            recv.stop()
+        recv.start()
+        if EXIT_EVENT.wait(10):
+            time.sleep(0.1)
+        recv.stop()
 
         self.assertEqual(mock_bot.process_new_updates.call_count, 2)
-        recv.send_message.assert_called_once()
-        recv.send_message.assert_called_with(mock_bot, TEST_DB[0]['uid'], ANY)
+        mock_sender.assert_called_once()
+        mock_sender.assert_called_with(mock_bot, MASTER_UID, ANY)
 
-    def test_exception(self):
-        recv = receiver.ReceiverThread(Mock())
+        reset_mock(mock_sender, mock_session, foo)
+
+    def test_exception(self, *args):
+        recv = ReceiverThread(Mock())
         recv.new_messages = Mock()
         recv.new_messages.wait.side_effect = Exception
         recv.exit = Mock()
@@ -52,3 +55,17 @@ class SetReceiver(Fixtures):
         time.sleep(0.1)
         with self.assertRaises(Exception):
             recv.stop()
+
+        reset_mock(*args)
+
+    def tearDown(self):
+        if EXIT_EVENT.is_set():
+            EXIT_EVENT.clear()
+        if NEW_MESSAGES_EVENT.is_set():
+            NEW_MESSAGES_EVENT.clear()
+        if USERS.get(MASTER_UID):
+            USERS.pop(MASTER_UID)
+
+
+if __name__ == '__main__':
+    unittest.main()

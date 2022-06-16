@@ -4,8 +4,7 @@ import os
 import pathlib
 import re
 import threading
-
-from typing import Dict, Union, List, Callable, Any, TypeVar
+from typing import Dict, Union, List
 
 import telebot
 import feedparser
@@ -247,3 +246,19 @@ del telebot_log_handler
 del telebot_log_formatter
 del log_handler
 del log_formatter
+
+del datetime
+del logging
+del os
+del pathlib
+del re
+del threading
+del Dict
+del Union
+del List
+
+del telebot
+del feedparser
+del sql
+del declarative_base
+del sessionmaker

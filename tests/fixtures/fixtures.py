@@ -1,18 +1,19 @@
 from datetime import datetime
-import sys
-import pathlib
 import json
+import pathlib
+import sys
 import unittest
 from unittest.mock import Mock
 
+import telebot
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
-if BASE_DIR not in sys.path:
+if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
-from kaban.settings import SQLAlchemyBase, FeedsDB, WebhookDB
+from kaban.settings import SQLAlchemyBase, FeedsDB
 
 
 TEST_DB = [
@@ -45,11 +46,21 @@ TEST_DB = [
         'summary': True, 'date': True, 'link': True, 'short': None
     },
 ]
+MOCK_DB_ENTRY = Mock()
+MOCK_DB_ENTRY.id = 1
+MOCK_DB_ENTRY.uid = TEST_DB[0]['uid']
+MOCK_DB_ENTRY.feed = TEST_DB[0]['feed']
+MOCK_DB_ENTRY.last_posts = TEST_DB[0]['last_posts']
+MOCK_DB_ENTRY.last_check = TEST_DB[0]['last_check']
+MOCK_DB_ENTRY.summary = TEST_DB[0]['summary']
+MOCK_DB_ENTRY.date = TEST_DB[0]['date']
+MOCK_DB_ENTRY.link = TEST_DB[0]['link']
+MOCK_DB_ENTRY.short = TEST_DB[0]['short']
 
-class Fixtures(unittest.TestCase):
+
+class MockDB(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # db
         cls.db_uri = pathlib.Path(__file__).resolve().parent / "database.sqlite3"
         cls.db = sqlalchemy.create_engine(f"sqlite:///{cls.db_uri}", future=True)
 
@@ -71,32 +82,39 @@ class Fixtures(unittest.TestCase):
             else:
                 session.commit()
 
-        # feedparser
-        with open(pathlib.Path(__file__).resolve().parent / 'feed.json') as f:
-            cls.feed_data = json.load(f)
-            cls.post_data = cls.feed_data['entries'][9]
-        """
-        cls.db_entry = Mock()
-        cls.db_entry.id = 1
-        cls.db_entry.uid = TEST_DB[0]['uid']
-        cls.db_entry.feed = TEST_DB[0]['feed']
-        cls.db_entry.last_posts = TEST_DB[0]['last_posts']
-        cls.db_entry.last_check = TEST_DB[0]['last_check']
-        cls.db_entry.summary = TEST_DB[0]['summary']
-        cls.db_entry.date = TEST_DB[0]['date']
-        cls.db_entry.link = TEST_DB[0]['link']
-        cls.db_entry.short = TEST_DB[0]['short']
-
-        cls.feed = Mock()
-        cls.feed.href = cls.feed_data['href']
-
-        cls.post = Mock()
-        cls.post.title = cls.post_data['title']
-        cls.post.summary = cls.post_data['summary']
-        cls.post.published_parsed = tuple(cls.post_data['published_parsed'])
-        cls.post.link = cls.post_data['link']
-        """
-
     @classmethod
     def tearDownClass(cls):
         cls.db_uri.unlink()
+
+
+# feedparser
+with open(BASE_DIR / 'tests' / 'fixtures' / 'feed.json') as f:
+    FEED_DATA = json.load(f)
+    POST_DATA = FEED_DATA['entries'][9]
+
+MOCK_POST = Mock()
+MOCK_POST.title = POST_DATA['title']
+MOCK_POST.summary = POST_DATA['summary']
+MOCK_POST.published_parsed = tuple(POST_DATA['published_parsed'])
+MOCK_POST.link = POST_DATA['link']
+
+MOCK_FEED = Mock()
+MOCK_FEED.href = FEED_DATA['href']
+MOCK_FEED.entries = [MOCK_POST]
+
+
+# telegram load json
+with open(BASE_DIR / 'tests' / 'fixtures' / 'tg_request.json') as f:
+    TG_REQUEST = f.read().strip()
+
+
+def make_update(s: str) -> telebot.types.Update:
+    tg_request = json.loads(TG_REQUEST)
+    tg_request['message']['text'] = s
+    request = json.dumps(tg_request)
+    update = telebot.types.Update.de_json(request)
+    return update
+
+
+def reset_mock(*mock_list) -> None:
+    [mock.reset_mock() for mock in mock_list]
