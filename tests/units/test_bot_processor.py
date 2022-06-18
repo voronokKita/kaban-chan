@@ -114,7 +114,7 @@ class AddNewFeed(unittest.TestCase):
         update = make_update(CMD_INSERT)
         self.bot.process_new_updates([update])
 
-        awaiting = f"Use {CMD_ADD} command first."
+        awaiting = 'You must add feed first.'
         mock_sender.assert_called_with(self.bot, MASTER_UID, awaiting)
 
         reset_mock(mock_sender, *args)
@@ -248,7 +248,7 @@ class ListFeeds(unittest.TestCase):
         mock_feed_checker.side_effect = DataAlreadyExists
         mock_shortcut.side_effect = IndexError
 
-        update = make_update(CMD_SHORTCUT + ' shortcut feed')
+        update = make_update(CMD_SHORTCUT + ' feed shortcut')
         self.bot.process_new_updates([update])
 
         awaiting = f"The maximum length is {SHORTCUT_LEN} characters."
@@ -289,7 +289,7 @@ class Switcher(unittest.TestCase):
             self.bot.process_new_updates([update])
 
             mock_switcher.assert_called_with(MASTER_UID, command, 'dummy-feed')
-            mock_sender.assert_called_with(self.bot, MASTER_UID, "Done.")
+            mock_sender.assert_called_with(self.bot, MASTER_UID, ANY)
 
             reset_mock(mock_sender, mock_feed_checker, mock_switcher)
 

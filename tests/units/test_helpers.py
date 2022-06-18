@@ -114,7 +114,7 @@ class PostSender(MockDB):
         mock_post.link = None
 
         helpers.send_a_post('bot', mock_post, mock_db_entry, 'dummy-feed')
-        mock_switcher.assert_called_with(mock_db_entry.uid, ANY, 'dummy-feed')
+        mock_switcher.assert_called_with(mock_db_entry.uid, ANY, 'dummy-feed', silent=True)
         self.assertEqual(mock_switcher.call_count, 2)
 
         reset_mock(foo, mock_switcher)
@@ -251,7 +251,7 @@ class DeleteFeed(MockDB):
     def test_normal_case(self, mock_session, foo):
         mock_session.return_value = self.SQLSession()
         result = helpers.delete_a_feed(TEST_DB[0]['feed'], TEST_DB[0]['uid'])
-        self.assertEqual(result, "Done.")
+        self.assertEqual(result, "Deleted.")
 
         with self.SQLSession() as session:
             db_entry = session.query(FeedsDB).filter(

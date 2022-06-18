@@ -96,7 +96,7 @@ def send_a_post(bot, post: Feed, db_entry, feed: str):
             summary_text = BeautifulSoup(post.summary, features='html.parser').text.strip()
             if not summary_text: raise AttributeError
         except (AttributeError, TypeError):
-            feed_switcher(db_entry.uid, CMD_SUMMARY, feed)
+            feed_switcher(db_entry.uid, CMD_SUMMARY, feed, silent=True)
         else:
             s = summary_text[:FEED_SUMMARY_LEN]
             s += "..." if len(summary_text) > FEED_SUMMARY_LEN else ""
@@ -112,7 +112,7 @@ def send_a_post(bot, post: Feed, db_entry, feed: str):
         try:
             if not post.link: raise TypeError
         except (AttributeError, TypeError):
-            feed_switcher(db_entry.uid, CMD_LINK, feed)
+            feed_switcher(db_entry.uid, CMD_LINK, feed, silent=True)
         else:
             text += post.link + "\n"
 
@@ -194,7 +194,7 @@ def delete_a_feed(feed: str, uid: int, silent=False) -> str:
             session.delete(db_entry)
             session.commit()
             info('db - entry removed')
-            text = "Done."
+            text = "Deleted."
         else:
             text = "No such web feed found. Check for errors."
 
@@ -235,11 +235,12 @@ def feed_shortcut(uid: int, shortcut: str, feed: str) -> str:
         db_entry.short = shortcut
         session.commit()
 
-    return "Done."
+    return "Appended."
 
 
-def feed_switcher(uid: int, command: Command, feed: str):
+def feed_switcher(uid: int, command: Command, feed: str, silent=False):
     """ Changes post style. """
+    text = ''
     with SQLSession() as session:
         db_entry = session.query(FeedsDB).filter(
             FeedsDB.uid == uid,
@@ -247,11 +248,15 @@ def feed_switcher(uid: int, command: Command, feed: str):
         ).first()
         if command == CMD_SUMMARY:
             db_entry.summary = not db_entry.summary
+            text = 'Summary switched.'
         elif command == CMD_DATE:
             db_entry.date = not db_entry.date
+            text = 'Date switched.'
         elif command == CMD_LINK:
             db_entry.link = not db_entry.link
+            text = 'Link switched.'
         session.commit()
+    return text
 
 
 def delete_user(uid: int):

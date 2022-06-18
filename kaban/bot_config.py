@@ -84,7 +84,7 @@ def get_bot():
             USERS.pop(uid)
 
         elif message.text == CMD_INSERT:
-            text = f"Use {CMD_ADD} command first."
+            text = f"You must add feed first."
 
         else:
             text = f"You can use {CMD_CANCEL} to go back."
@@ -148,8 +148,7 @@ def get_bot():
             try:
                 check_out_feed(feed, uid, first_time=False)
             except DataAlreadyExists:
-                feed_switcher(uid, command, feed)
-                text = "Done."
+                text = feed_switcher(uid, command, feed)
             else:
                 text = "No such web feed found. Check for errors."
 

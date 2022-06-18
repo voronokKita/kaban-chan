@@ -1,6 +1,7 @@
 from copy import copy
 import pathlib
 import requests
+import signal
 import sys
 import time
 import unittest
@@ -11,6 +12,7 @@ if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 from kaban import flask_config
+from kaban.helpers import exit_signal
 from kaban.webhook import WebhookThread
 from kaban.database import WebhookDB
 from kaban.settings import (
@@ -95,7 +97,7 @@ class FlaskConfig(MockDB):
         try: self.hook.start()
         except Exception: pass
         else:
-            if HOOK_READY_TO_WORK.wait(5):
+            if HOOK_READY_TO_WORK.wait(9):
                 self.url = self.hook.url
 
     @unittest.skipIf(no_internet, 'no internet')
@@ -135,4 +137,6 @@ class FlaskConfig(MockDB):
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, exit_signal)
+    signal.signal(signal.SIGTSTP, exit_signal)
     unittest.main()

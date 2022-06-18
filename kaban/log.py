@@ -34,8 +34,3 @@ def info(s):
     log.setLevel('INFO')
     log.info(s)
     log.setLevel('WARNING')
-
-def debug(s):
-    log.setLevel('DEBUG')
-    log.debug(s)
-    log.setLevel('WARNING')

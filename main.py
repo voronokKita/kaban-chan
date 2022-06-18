@@ -99,6 +99,5 @@ if __name__ == '__main__':
 
     if __debug__ is True and not REPLIT:
         execute_tests()
-        exit()
-
-    main()
+    else:
+        main()
