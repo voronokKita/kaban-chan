@@ -6,7 +6,16 @@ import feedparser
 from bs4 import BeautifulSoup
 from telebot.apihelper import ApiTelegramException
 
-from kaban.settings import *
+from kaban.settings import (
+    EXIT_EVENT, NEW_MESSAGES_EVENT,
+    SHORTCUT_LEN, FEED_SUMMARY_LEN, TIME_FORMAT,
+    WRONG_TOKEN, UID_NOT_FOUND, BOT_BLOCKED, BOT_TIMEOUT,
+    CMD_SUMMARY, CMD_DATE, CMD_LINK,
+    FeedFormatError, DataAlreadyExists, FeedPreprocessError,
+    Feed, Command
+)
+from kaban.database import SQLSession, FeedsDB
+from kaban.log import log, info
 
 
 def exit_signal(signal_=None, frame=None):
@@ -21,7 +30,7 @@ def send_message(bot, uid: int, text: str):
     retry = None
     while True:
         try:
-            bot.send_message(uid, text)
+            bot_sender(bot, uid, text)
 
         except ApiTelegramException as error:
             if WRONG_TOKEN.search(error.description):
@@ -55,6 +64,11 @@ def send_message(bot, uid: int, text: str):
 
         time.sleep(0.1)
         break
+
+
+def bot_sender(bot, uid, text):
+    """ The function is separated for test purposes. """
+    bot.send_message(uid, text)
 
 
 def resend_message(attempt: int, sleep: int, delete_uid=None) -> bool:

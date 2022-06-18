@@ -14,9 +14,10 @@ if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 from kaban import helpers
+from kaban.database import FeedsDB
 from kaban.settings import (
     DataAlreadyExists, FeedFormatError, FeedPreprocessError,
-    FeedsDB, CMD_SUMMARY, CMD_DATE, CMD_LINK, SHORTCUT_LEN,
+    CMD_SUMMARY, CMD_DATE, CMD_LINK, SHORTCUT_LEN,
     WRONG_TOKEN, UID_NOT_FOUND, BOT_BLOCKED, BOT_TIMEOUT
 )
 from tests.fixtures.fixtures import (

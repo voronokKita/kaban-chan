@@ -14,16 +14,17 @@ if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 from kaban.updater import UpdaterThread
-from kaban.settings import FeedsDB, EXIT_EVENT
+from kaban.database import FeedsDB
+from kaban.settings import EXIT_EVENT
 
 from tests.fixtures.fixtures import reset_mock, MockDB, TEST_DB, MOCK_FEED, MOCK_POST
 
 
 @patch('kaban.updater.info')
 @patch('kaban.updater.log')
-@patch('kaban.helpers.exit_signal')
-@patch('kaban.helpers.send_message')
-@patch('kaban.helpers.send_a_post')
+@patch('kaban.updater.exit_signal')
+@patch('kaban.updater.send_message')
+@patch('kaban.updater.send_a_post')
 @patch('kaban.updater.feedparser')
 @patch('kaban.updater.SQLSession')
 class SetUpdater(MockDB):
@@ -66,9 +67,9 @@ class SetUpdater(MockDB):
 
 @patch('kaban.updater.info')
 @patch('kaban.updater.log')
-@patch('kaban.helpers.exit_signal')
-@patch('kaban.helpers.send_message')
-@patch('kaban.helpers.send_a_post')
+@patch('kaban.updater.exit_signal')
+@patch('kaban.updater.send_message')
+@patch('kaban.updater.send_a_post')
 @patch('kaban.updater.SQLSession')
 class WithInternet(MockDB):
     try: requests.get('https://core.telegram.org/')
@@ -98,7 +99,7 @@ class WithInternet(MockDB):
 
 
 @patch('kaban.updater.info')
-@patch('kaban.helpers.send_message')
+@patch('kaban.updater.send_message')
 @patch('kaban.updater.SQLSession')
 class Note(MockDB):
     def test_notifications(self, mock_session, mock_sender, mock_info):
@@ -181,7 +182,7 @@ class Loader(MockDB):
         reset_mock(mock_session, mock_feedparser, mock_log)
 
 
-@patch('kaban.helpers.send_a_post')
+@patch('kaban.updater.send_a_post')
 @patch('kaban.updater.SQLSession')
 class Sender(MockDB):
     def test_normal_case(self, mock_session, mock_poster):

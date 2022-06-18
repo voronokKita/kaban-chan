@@ -5,8 +5,13 @@ import time
 
 import feedparser
 
-from kaban.settings import *
-from kaban import helpers
+from kaban.settings import (
+    EXIT_EVENT, FEEDS_UPDATE_TIMEOUT, NOTIFICATIONS, FeedLoadError,
+    UpdPosts, UpdFeeds, UpdPostList, UpdPost, Feed
+)
+from kaban.helpers import exit_signal, send_message, send_a_post
+from kaban.database import SQLSession, FeedsDB, POSTS_TO_STORE
+from kaban.log import log, info
 
 
 class UpdaterThread(threading.Thread):
@@ -22,9 +27,9 @@ class UpdaterThread(threading.Thread):
         self.bot = bot
         self.exception = None
 
-        self.exit = helpers.exit_signal
-        self.send_message = helpers.send_message
-        self.send_a_post = helpers.send_a_post
+        self.exit = exit_signal
+        self.send_message = send_message
+        self.send_a_post = send_a_post
 
         self.exit_event = EXIT_EVENT
         self.timeout = FEEDS_UPDATE_TIMEOUT
@@ -174,10 +179,8 @@ class UpdaterThread(threading.Thread):
             db_entry.last_check = published
             session.commit()
 
-    @staticmethod
-    def _test():
+    def _test(self):
         """ Needed for testing. """
-        pass
 
     def stop(self):
         threading.Thread.join(self)

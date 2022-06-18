@@ -5,8 +5,12 @@ import telebot
 from pyngrok import ngrok
 from werkzeug.serving import make_server, BaseWSGIServer
 
-from kaban.settings import *
-from kaban import helpers
+from kaban.settings import (
+    API, ADDRESS, PORT, WEBHOOK_ENDPOINT,
+    WEBHOOK_WAS_SET, HOOK_READY_TO_WORK,
+    REPLIT, REPLIT_URL
+)
+from kaban.helpers import exit_signal
 
 
 class WebhookThread(threading.Thread):
@@ -17,7 +21,7 @@ class WebhookThread(threading.Thread):
         self.url = str
         self.exception = None
 
-        self.exit = helpers.exit_signal
+        self.exit = exit_signal
         self.webhook_was_set = WEBHOOK_WAS_SET
 
         self.tg_api = API

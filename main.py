@@ -8,6 +8,7 @@ Kaban-chan is a telegram bot that can keep track of your web feeds
 
 v1 2022, April
 v2 May - refactor, change updater
+v3 June - big refactor, new updater logic, tests
 
 Thanks to
     https://habr.com/ru/post/350648/
@@ -19,18 +20,20 @@ Thanks to
     https://stackoverflow.com/a/54800683
     https://github.com/eternnoir/pyTelegramBotAPI/issues/139
     https://realpython.com/python-mock-library/
+    https://stackoverflow.com/a/63688306
 """
 import signal
 import sys
 import time
 
-from kaban import helpers
 from kaban import bot_config
 from kaban import flask_config
-from kaban.settings import *
+from kaban.helpers import exit_signal
 from kaban.webhook import WebhookThread
 from kaban.updater import UpdaterThread
 from kaban.receiver import ReceiverThread
+from kaban.settings import HOOK_READY_TO_WORK, EXIT_EVENT, REPLIT
+from kaban.log import log, info
 
 
 def main():
@@ -67,6 +70,7 @@ def main():
 
     if EXIT_EVENT.wait():
         print("shutting down")
+        time.sleep(0.5)
         server.shutdown()
 
     errors = False
@@ -90,10 +94,11 @@ def execute_tests():
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, exit_signal)
+    signal.signal(signal.SIGTSTP, exit_signal)
+
     if __debug__ is True and not REPLIT:
         execute_tests()
         exit()
 
-    signal.signal(signal.SIGINT, helpers.exit_signal)
-    signal.signal(signal.SIGTSTP, helpers.exit_signal)
     main()

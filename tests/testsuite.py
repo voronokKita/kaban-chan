@@ -7,6 +7,7 @@ if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 from tests.units import test_helpers, test_bot_processor, test_receiver, test_updater, test_webhook
+from tests.integration import integration
 
 
 def execute():
@@ -15,6 +16,7 @@ def execute():
     # big_suite = unittest.TestLoader().loadTestsFromModule(test_updater)
     # big_suite = unittest.TestLoader().loadTestsFromModule(test_receiver)
     # big_suite = unittest.TestLoader().loadTestsFromModule(test_bot_processor)
+    # big_suite = unittest.TestLoader().loadTestsFromModule(integration)
     test_modules = [test_helpers, test_bot_processor,
                     test_receiver, test_updater, test_webhook]
 

@@ -4,7 +4,12 @@ import telebot
 import flask
 from flask import Flask, request
 
-from kaban.settings import *
+from kaban.database import SQLSession, WebhookDB
+from kaban.settings import (
+    NEW_MESSAGES_EVENT, BANNED,
+    WEBHOOK_ENDPOINT, WebhookRequestError
+)
+from kaban.log import log
 
 
 def get_app():

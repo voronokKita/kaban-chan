@@ -12,14 +12,15 @@ if str(BASE_DIR) not in sys.path:
 
 from kaban import flask_config
 from kaban.webhook import WebhookThread
+from kaban.database import WebhookDB
 from kaban.settings import (
     HOOK_READY_TO_WORK, NEW_MESSAGES_EVENT,
-    WEBHOOK_ENDPOINT, WebhookDB, BANNED
+    WEBHOOK_ENDPOINT, BANNED
 )
 from tests.fixtures.fixtures import MockDB, reset_mock, TG_REQUEST
 
 
-@patch('kaban.helpers.exit_signal')
+@patch('kaban.webhook.exit_signal')
 @patch('kaban.webhook.subprocess')
 @patch('kaban.webhook.telebot')
 @patch('kaban.webhook.ngrok')
@@ -77,7 +78,7 @@ class SetHook(unittest.TestCase):
 
 
 @patch('kaban.flask_config.log')
-@patch('kaban.helpers.exit_signal')
+@patch('kaban.webhook.exit_signal')
 @patch('kaban.flask_config.SQLSession')
 class FlaskConfig(MockDB):
     """

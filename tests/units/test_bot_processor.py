@@ -23,8 +23,8 @@ class Hello(unittest.TestCase):
     def test_help(self):
         tg_request = json.loads(TG_REQUEST)
 
-        with patch('kaban.helpers.send_message') as mock_sender, \
-                patch('kaban.helpers.delete_user') as mock_delete, \
+        with patch('kaban.bot_config.send_message') as mock_sender, \
+                patch('kaban.bot_config.delete_user') as mock_delete, \
                 patch('kaban.bot_config.time') as mock_time:
             bot = bot_config.get_bot()
 
@@ -54,9 +54,9 @@ class Hello(unittest.TestCase):
 
 @patch('kaban.bot_config.info')
 @patch('kaban.bot_config.time')
-@patch('kaban.helpers.add_new_feed')
-@patch('kaban.helpers.check_out_feed')
-@patch('kaban.helpers.send_message')
+@patch('kaban.bot_config.add_feed')
+@patch('kaban.bot_config.check_out_feed')
+@patch('kaban.bot_config.send_message')
 class AddNewFeed(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -169,11 +169,11 @@ class AddNewFeed(unittest.TestCase):
             USERS.pop(MASTER_UID)
 
 
-@patch('kaban.helpers.feed_shortcut')
-@patch('kaban.helpers.check_out_feed')
-@patch('kaban.helpers.delete_a_feed')
-@patch('kaban.helpers.list_user_feeds')
-@patch('kaban.helpers.send_message')
+@patch('kaban.bot_config.feed_shortcut')
+@patch('kaban.bot_config.check_out_feed')
+@patch('kaban.bot_config.delete_a_feed')
+@patch('kaban.bot_config.list_feeds')
+@patch('kaban.bot_config.send_message')
 class ListFeeds(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -261,9 +261,9 @@ class ListFeeds(unittest.TestCase):
             USERS.pop(MASTER_UID)
 
 
-@patch('kaban.helpers.feed_switcher')
-@patch('kaban.helpers.check_out_feed')
-@patch('kaban.helpers.send_message')
+@patch('kaban.bot_config.feed_switcher')
+@patch('kaban.bot_config.check_out_feed')
+@patch('kaban.bot_config.send_message')
 class Switcher(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

@@ -1,8 +1,9 @@
 import telebot
 import threading
 
-from kaban.settings import *
-from kaban import helpers
+from kaban.database import SQLSession, WebhookDB
+from kaban.helpers import exit_signal, send_message
+from kaban.settings import USERS, EXIT_EVENT, NEW_MESSAGES_EVENT, EXIT_NOTE
 
 
 class ReceiverThread(threading.Thread):
@@ -13,8 +14,8 @@ class ReceiverThread(threading.Thread):
         self.users_in_memory = USERS
         self.exception = None
 
-        self.exit = helpers.exit_signal
-        self.send_message = helpers.send_message
+        self.exit = exit_signal
+        self.send_message = send_message
 
         self.new_messages = NEW_MESSAGES_EVENT
         self.exit_event = EXIT_EVENT

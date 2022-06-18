@@ -10,14 +10,15 @@ if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 from kaban.receiver import ReceiverThread
-from kaban.settings import WebhookDB, EXIT_EVENT, NEW_MESSAGES_EVENT, USERS, MASTER_UID
+from kaban.database import WebhookDB
+from kaban.settings import EXIT_EVENT, NEW_MESSAGES_EVENT, USERS, MASTER_UID
 
 from tests.fixtures.fixtures import MockDB, reset_mock, TG_REQUEST
 
 
-@patch('kaban.helpers.exit_signal')
+@patch('kaban.receiver.exit_signal')
 @patch('kaban.receiver.SQLSession')
-@patch('kaban.helpers.send_message')
+@patch('kaban.receiver.send_message')
 class SetReceiver(MockDB):
     def test_normal_case(self, mock_sender, mock_session, foo):
         tg_request = copy(TG_REQUEST)

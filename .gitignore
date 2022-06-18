@@ -1,11 +1,13 @@
+# OS
 .vscode
 .idea
+.directory
 
+# Project
 resources/
 .api
 database.sqlite3
 feedback.log
-messages_socket
 Pipfile.lock
 
 # Byte-compiled / optimized / DLL files

@@ -2,8 +2,24 @@ import time
 
 import telebot
 
-from kaban.settings import *
-from kaban import helpers
+from kaban.settings import (
+    API, USERS, HELP, SHORTCUT_LEN,
+    ADD_FEED, INSERT_FEED, GO_BACK,
+    CMD_ADD, CMD_INSERT, CMD_CANCEL,
+    LIST_FEEDS, DELETE_FEED, ADD_SHORTCUT,
+    CMD_LIST, PATTERN_DELETE, PATTERN_SHORTCUT,
+    SWITCH_SUMMARY, SWITCH_DATE, SWITCH_LINK,
+    PATTERN_SUMMARY, PATTERN_DATE, PATTERN_LINK,
+    PATTERN_COMMAND, Command,
+    DataAlreadyExists, FeedFormatError
+)
+from kaban.helpers import (
+    delete_user, send_message, check_out_feed,
+    delete_a_feed, feed_shortcut, feed_switcher
+)
+from kaban.helpers import add_new_feed as add_feed
+from kaban.helpers import list_user_feeds as list_feeds
+from kaban.log import info
 
 
 def get_bot():
@@ -15,19 +31,19 @@ def get_bot():
         """ Will also delete any old data in order to work as a restart function. """
         uid = message.chat.id
         if USERS.get(uid): USERS.pop(uid)
-        helpers.delete_user(uid)
+        delete_user(uid)
 
-        helpers.send_message(bot, uid, f"Hello, @{message.chat.username}!")
+        send_message(bot, uid, f"Hello, @{message.chat.username}!")
         time.sleep(1)
         text = f"Use {CMD_ADD} command. I will check your web feed from time to time " \
                "and notify when something new comes up~\n\n" \
                "ⓘ The server may be slow so don't rush to use commands again " \
                "if there is no immediate response. (´･ᴗ･ ` )"
-        helpers.send_message(bot, uid, text)
+        send_message(bot, uid, text)
 
     @bot.message_handler(commands=['help'])
     def help(message):
-        helpers.send_message(bot, message.chat.id, HELP)
+        send_message(bot, message.chat.id, HELP)
 
     @bot.message_handler(commands=[ADD_FEED, INSERT_FEED, GO_BACK])
     def add_new_feed(message, check_out=False):
@@ -46,7 +62,7 @@ def get_bot():
         elif check_out:
             feed = message.text.strip()
             try:
-                helpers.check_out_feed(feed, uid)
+                check_out_feed(feed, uid)
             except DataAlreadyExists:
                 text = "I already watch this feed for you!"
             except FeedFormatError:
@@ -63,7 +79,7 @@ def get_bot():
                 USERS[uid]['POTENTIAL_FEED'] and \
                 message.text == CMD_INSERT:
             feed = USERS[uid]['POTENTIAL_FEED']
-            text = helpers.add_new_feed(bot, uid, feed)
+            text = add_feed(bot, uid, feed)
             time.sleep(0.1)
             USERS.pop(uid)
 
@@ -73,7 +89,7 @@ def get_bot():
         else:
             text = f"You can use {CMD_CANCEL} to go back."
 
-        helpers.send_message(bot, uid, text)
+        send_message(bot, uid, text)
 
     @bot.message_handler(commands=[LIST_FEEDS, DELETE_FEED, ADD_SHORTCUT])
     def list_user_feeds(message):
@@ -88,21 +104,21 @@ def get_bot():
             add_new_feed(message)
 
         elif message_text == CMD_LIST:
-            text = helpers.list_user_feeds(uid)
+            text = list_feeds(uid)
 
         elif PATTERN_DELETE.fullmatch(message_text):
             feed = PATTERN_DELETE.findall(message_text)[0][1]
-            text = helpers.delete_a_feed(feed, uid)
+            text = delete_a_feed(feed, uid)
 
         elif PATTERN_SHORTCUT.fullmatch(message_text):
             parts = PATTERN_SHORTCUT.findall(message_text)
             feed = parts[0][1].strip()
             shortcut = parts[0][2]
             try:
-                helpers.check_out_feed(feed, uid, first_time=False)
+                check_out_feed(feed, uid, first_time=False)
             except DataAlreadyExists:
                 try:
-                    text = helpers.feed_shortcut(uid, shortcut, feed)
+                    text = feed_shortcut(uid, shortcut, feed)
                 except IndexError:
                     text = f"The maximum length is {SHORTCUT_LEN} characters."
             else:
@@ -111,7 +127,7 @@ def get_bot():
         else:
             help(message)
 
-        if text: helpers.send_message(bot, uid, text)
+        if text: send_message(bot, uid, text)
 
     @bot.message_handler(commands=[SWITCH_SUMMARY, SWITCH_DATE, SWITCH_LINK])
     def switch(message):
@@ -130,9 +146,9 @@ def get_bot():
             feed = parts[0][1]
             command = Command(parts[0][0].strip())
             try:
-                helpers.check_out_feed(feed, uid, first_time=False)
+                check_out_feed(feed, uid, first_time=False)
             except DataAlreadyExists:
-                helpers.feed_switcher(uid, command, feed)
+                feed_switcher(uid, command, feed)
                 text = "Done."
             else:
                 text = "No such web feed found. Check for errors."
@@ -140,7 +156,7 @@ def get_bot():
         else:
             help(message)
 
-        if text: helpers.send_message(bot, uid, text)
+        if text: send_message(bot, uid, text)
 
     @bot.message_handler(content_types=['text'])
     def get_text_data(message):

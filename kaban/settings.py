@@ -1,22 +1,16 @@
-from datetime import datetime
-import logging
+from logging import RootLogger
 import os
 import pathlib
 import re
-import threading
+from threading import Event
 from typing import Dict, Union, List
 
-import telebot
-import feedparser
-import sqlalchemy as sql
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
+import sqlalchemy
+from feedparser.util import FeedParserDict
 
 
 # Annotations
-class Logger(logging.RootLogger): pass
-
-class Event(threading.Event): pass
+class Logger(RootLogger): pass
 
 class Path(pathlib.Path): pass
 
@@ -24,7 +18,7 @@ class UsersInMemory(Dict[int, Dict[str, Union[bool, str]]]): pass
 
 class BannedIp(List[str]): pass
 
-class Feed(feedparser.util.FeedParserDict): pass
+class Feed(FeedParserDict): pass
 
 class UpdPost(Dict[str, Union[str, Feed]]):
     """ {'str-title-md5': Feed} """
@@ -42,14 +36,14 @@ class Key(str): pass
 
 class Command(str): pass
 
-class Engine(sql.engine.Engine): pass
+class Engine(sqlalchemy.engine.Engine): pass
 
 
 # Main data
 MASTER = "@simple_complexity"
 MASTER_UID = 1266575762
 
-REPLIT = False
+REPLIT: bool = False
 
 BASE_DIR: Path = pathlib.Path(__file__).resolve().parent.parent
 
@@ -65,9 +59,9 @@ SHORTCUT_LEN = 30
 USERS: UsersInMemory = {}
 BANNED: BannedIp = []
 
-HOOK_READY_TO_WORK: Event = threading.Event()
-EXIT_EVENT: Event = threading.Event()
-NEW_MESSAGES_EVENT: Event = threading.Event()
+HOOK_READY_TO_WORK: Event = Event()
+EXIT_EVENT: Event = Event()
+NEW_MESSAGES_EVENT: Event = Event()
 
 
 # Exceptions
@@ -145,39 +139,6 @@ else:
         API = input("Enter the bot API key: ").strip()
 
 
-# Database
-POSTS_TO_STORE = 50
-
-DB_URI: Path = BASE_DIR / "resources" / "database.sqlite3"
-db: Engine = sql.create_engine(f"sqlite:///{DB_URI}", future=True)
-SQLSession = sessionmaker(db)
-SQLAlchemyBase = declarative_base()
-
-class FeedsDB(SQLAlchemyBase):
-    __tablename__ = "feeds"
-    id = sql.Column(sql.Integer, primary_key=True)
-    uid = sql.Column(sql.Integer, index=True, nullable=False)
-    feed = sql.Column(sql.Text, nullable=False)
-    last_posts = sql.Column(sql.Text, nullable=False, default=' ')
-    last_check = sql.Column(sql.DateTime, nullable=False, default=datetime.now)
-    summary = sql.Column(sql.Boolean, nullable=False, default=True)
-    date = sql.Column(sql.Boolean, nullable=False, default=True)
-    link = sql.Column(sql.Boolean, nullable=False, default=True)
-    short = sql.Column(sql.String(SHORTCUT_LEN), nullable=True, default=None)
-    def __str__(self):
-        return f"<feed entry #{self.id!r}>"
-
-class WebhookDB(SQLAlchemyBase):
-    __tablename__ = "webhook"
-    id = sql.Column(sql.Integer, primary_key=True)
-    data = sql.Column(sql.Text, nullable=False)
-    def __str__(self):
-        return f"<web message #{self.id!r}>"
-
-if not DB_URI.exists():
-    SQLAlchemyBase.metadata.create_all(db)
-
-
 # Requests errors
 """ Telegram request error codes
 400 - Bad Request: chat not found
@@ -198,67 +159,3 @@ WRONG_TOKEN = re.compile(r'Unauthorized')
 UID_NOT_FOUND = re.compile(r'not found')
 BOT_BLOCKED = re.compile(r'kicked|blocked|deactivated')
 BOT_TIMEOUT = re.compile(r'Too many requests')
-
-
-# Logging
-LOG: Path = BASE_DIR / "resources" / "feedback.log"
-LOG_FORMAT = '- %(asctime)s %(levelname)s: %(message)s'
-LOG_DATEFORMAT = '%Y-%m-%d %H:%M'
-
-werkzeug_log = logging.getLogger('werkzeug')
-werkzeug_log.setLevel('ERROR')
-werkzeug_log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
-werkzeug_log_formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFORMAT)
-werkzeug_log_handler.setFormatter(werkzeug_log_formatter)
-werkzeug_log.addHandler(werkzeug_log_handler)
-
-telebot_log = telebot.logger
-telebot_log.setLevel('ERROR')
-telebot_log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
-telebot_log_formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFORMAT)
-telebot_log_handler.setFormatter(telebot_log_formatter)
-telebot_log.addHandler(telebot_log_handler)
-
-log: Logger = telebot.logging.getLogger(__name__)
-log.setLevel('WARNING')
-log_handler = logging.FileHandler(filename=LOG, encoding='utf8')
-log_formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATEFORMAT)
-log_handler.setFormatter(log_formatter)
-log.addHandler(log_handler)
-
-def info(s):
-    log.setLevel('INFO')
-    log.info(s)
-    log.setLevel('WARNING')
-
-def debug(s):
-    log.setLevel('DEBUG')
-    log.debug(s)
-    log.setLevel('WARNING')
-
-
-# Cleaning
-del LOG_FORMAT
-del LOG_DATEFORMAT
-del werkzeug_log_handler
-del werkzeug_log_formatter
-del telebot_log_handler
-del telebot_log_formatter
-del log_handler
-del log_formatter
-
-del datetime
-del logging
-del os
-del pathlib
-del re
-del threading
-del Dict
-del Union
-del List
-
-del telebot
-del feedparser
-del sql
-del declarative_base
-del sessionmaker

@@ -13,36 +13,38 @@ BASE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
-from kaban.settings import SQLAlchemyBase, FeedsDB
+from kaban.settings import MASTER_UID
+from kaban.database import SQLAlchemyBase, FeedsDB
 
 
+# last one should be the MASTER_UID
 TEST_DB = [
     {
         'uid': 42,
         'feed': 'https://feeds.feedburner.com/PythonInsider',
         'last_posts': 'eed88bab961aeadf2a7fcad594630f01 /// 1264ffbb3b77e31eeb8d97e167e4df3a',
-        'last_check': datetime.fromisoformat('2022-01-06 17:33:00'),
+        'last_check': datetime.fromisoformat('2022-01-13 10:00:00'),
         'summary': True, 'date': True, 'link': True, 'short': 'python'
     },
     {
         'uid': 42,
         'feed': 'https://www.wired.com/feed/category/business/latest/rss',
         'last_posts': 'c80aa8404ad0825822273e1897b9dcac /// 9fcac0d44dae6aaee0b5567a490d0748',
-        'last_check': datetime.fromisoformat('2022-01-07 11:00:00'),
+        'last_check': datetime.fromisoformat('2022-01-13 10:00:00'),
         'summary': True, 'date': True, 'link': True, 'short': None
     },
     {
         'uid': 9999,
         'feed': 'https://www.wired.com/feed/category/culture/latest/rss',
         'last_posts': '76ad4e66532c683ca2e41048fe234ec3 /// fa0aaf1980f2f19b297ad8b669974a4f',
-        'last_check': datetime.fromisoformat('2022-01-07 10:00:00'),
+        'last_check': datetime.fromisoformat('2022-01-13 10:00:00'),
         'summary': False, 'date': False, 'link': False, 'short': None
     },
     {
-        'uid': 13000000000,
+        'uid': MASTER_UID,
         'feed': 'https://www.wired.com/feed/category/science/latest/rss',
         'last_posts': '78f5b21fb5214a338635c0f6a158f057',
-        'last_check': datetime.fromisoformat('2022-01-07 12:00:00'),
+        'last_check': datetime.fromisoformat('2022-01-13 10:00:00'),
         'summary': True, 'date': True, 'link': True, 'short': None
     },
 ]
@@ -61,7 +63,7 @@ MOCK_DB_ENTRY.short = TEST_DB[0]['short']
 class MockDB(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.db_uri = pathlib.Path(__file__).resolve().parent / "database.sqlite3"
+        cls.db_uri = BASE_DIR / 'tests' / 'fixtures' / 'database.sqlite3'
         cls.db = sqlalchemy.create_engine(f"sqlite:///{cls.db_uri}", future=True)
 
         cls.SQLSession = sessionmaker(cls.db)
@@ -116,5 +118,13 @@ def make_update(s: str) -> telebot.types.Update:
     return update
 
 
+def make_request(s: str) -> str:
+    tg_request = json.loads(TG_REQUEST)
+    tg_request['message']['text'] = s
+    request = json.dumps(tg_request)
+    return request
+
+
+# clear mock objects
 def reset_mock(*mock_list) -> None:
     [mock.reset_mock() for mock in mock_list]
