@@ -12,7 +12,7 @@ The bot chassis uses pyTelegramBotAPI. The webhook made on Flask accepts command
 If you want to run a copy, you need to get a bot API from BotFather and install cURL. <br>
 Work on Windows do not guaranteed.
 
-###### Install the Pipenv and run in a terminal:
+###### Install Pipenv and run in a terminal:
 
 0. pipenv install
 1. pipenv shell
