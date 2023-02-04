@@ -3,9 +3,6 @@
 Kaban-chan is a telegram bot that can keep track of your web feeds
 🔗https://t.me/KabanChan_bot
 
-🖧my github https://github.com/voronokKita
-🗩my telegram https://t.me/simple_complexity
-
 v1 2022, April
 v2 May - refactor, change updater
 v3 June - big refactor, new updater logic, tests

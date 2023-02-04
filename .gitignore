@@ -6,6 +6,7 @@
 # Project
 resources/
 .api
+.master
 database.sqlite3
 feedback.log
 Pipfile.lock

@@ -40,12 +40,15 @@ class Engine(sqlalchemy.engine.Engine): pass
 
 
 # Main data
-MASTER = "@simple_complexity"
-MASTER_UID = 1266575762
-
 REPLIT: bool = False
 
 BASE_DIR: Path = pathlib.Path(__file__).resolve().parent.parent
+
+if not REPLIT:
+    master = BASE_DIR / 'resources' / '.master'
+    with master.open('r') as f: MASTER_UID = f.read().strip()
+else:
+    MASTER_UID = os.environ['MASTER']
 
 FEEDS_UPDATE_TIMEOUT = 3600
 
@@ -113,11 +116,10 @@ HELP = """
 {short} - ( {short} [feed] [shortcut] ), make a {s_len} character shortcut for a feed, or empty to clear it
 /help - this message
 /start - restart the bot
-master: {master}
 """.format(add=CMD_ADD, confirm=CMD_INSERT, cancel=CMD_CANCEL,
            list=CMD_LIST, delete=CMD_DELETE, date=CMD_DATE,
            summary=CMD_SUMMARY, link=CMD_LINK, short=CMD_SHORTCUT,
-           s_len=SHORTCUT_LEN, master=MASTER)
+           s_len=SHORTCUT_LEN)
 
 EXIT_NOTE = "Sorry, but I go to sleep~ See you later (´• ω •`)ﾉﾞ"
 

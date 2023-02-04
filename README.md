@@ -1,5 +1,7 @@
 # kaban-chan
 
+## The bot has stopped, for the time being.
+
 ![picture](kaban.jpg "Kaban-chan")
 
 One telegram bot to learn them all.
