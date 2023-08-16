@@ -1,4 +1,4 @@
-# kaban-chan
+# kaban-chan (deprecated)
 
 ## The bot has stopped, for the time being.
 
